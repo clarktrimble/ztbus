@@ -2,17 +2,19 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/clarktrimble/giant"
+	"github.com/clarktrimble/giant/basicrt"
 	"github.com/clarktrimble/giant/logrt"
 	"github.com/clarktrimble/giant/statusrt"
+	"github.com/clarktrimble/hondo"
 	"github.com/clarktrimble/launch"
+	"github.com/clarktrimble/sabot"
 
 	"ztbus"
-	"ztbus/minlog"
 	"ztbus/svc"
 )
 
@@ -30,8 +32,9 @@ var (
 type Config struct {
 	Version  string        `json:"version" ignored:"true"`
 	User     string        `json:"es_username" required:"true"`
-	Pass     string        `json:"es password" required:"true"` // Todo: redact from cfg, hdr
+	Pass     launch.Redact `json:"es_password" required:"true"`
 	Client   *giant.Config `json:"http_client"`
+	Truncate int           `json:"truncate" desc:"truncate log fields beyond length"`
 	DataPath string        `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
 	DryRun   bool          `json:"dry_run" desc:"parse input data file, but don't post"`
 }
@@ -42,27 +45,22 @@ func main() {
 
 	cfg := &Config{Version: version}
 	launch.Load(cfg, cfgPrefix)
+	// Todo: log loaded config
+	// Todo: push logs to ES and show off??
 
-	// Todo: make better
-	msg := fmt.Sprintf("%s:%s", cfg.User, cfg.Pass)
-	encoded := base64.StdEncoding.EncodeToString([]byte(msg))
-	auth := fmt.Sprintf("Basic %s", encoded)
-
-	// Todo: wring hands about map exists
-	// Todo: investigate Headers cfgble
-	//cfg.Client.Headers["Authorization"] = auth
-	cfg.Client.Headers = map[string]string{"Authorization": auth}
+	lgr := &sabot.Sabot{Writer: os.Stdout, MaxLen: cfg.Truncate}
+	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
 
 	// setup service layer
 
-	ctx := context.Background()
-	lgr := &minlog.MinLog{} // Todo: use sabot
+	basicRt := basicrt.New(cfg.User, string(cfg.Pass))
 
 	client := cfg.Client.New()
 	client.Use(&statusrt.StatusRt{})
 	client.Use(&logrt.LogRt{Logger: lgr})
+	client.Use(basicRt)
 	// 2023/11/12 10:39:33 RoundTripper returned a response & error; ignoring response
-	// Todo: wah ^^^ ?
+	// Todo: yeah fix ^^^ see: https://github.com/golang/go/issues/7620
 
 	docSvc := &svc.Svc{
 		Idx:    "ztbus001",

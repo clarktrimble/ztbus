@@ -3,7 +3,7 @@ module ztbus
 go 1.21.1
 
 require (
-	github.com/clarktrimble/giant v0.0.2-0.20231112161830-f281a647dd21
+	github.com/clarktrimble/giant v0.0.2-0.20231115184954-34ffd0615858
 	github.com/ghodss/yaml v1.0.0
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.29.0
@@ -15,6 +15,7 @@ require (
 require (
 	github.com/clarktrimble/hondo v0.0.2 // indirect
 	github.com/clarktrimble/launch v0.0.1 // indirect
+	github.com/clarktrimble/sabot v0.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20230315185526-52ccab3ef572 // indirect
