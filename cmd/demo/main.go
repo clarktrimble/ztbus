@@ -31,11 +31,11 @@ var (
 
 type Config struct {
 	Version  string        `json:"version" ignored:"true"`
+	Client   *giant.Config `json:"http_client"`
 	User     string        `json:"es_username" required:"true"`
 	Pass     launch.Redact `json:"es_password" required:"true"`
-	Client   *giant.Config `json:"http_client"`
+	DataPath string        `json:"data_path" desc:"ztbus data file for input" required:"true"`
 	Truncate int           `json:"truncate" desc:"truncate log fields beyond length"`
-	DataPath string        `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
 	DryRun   bool          `json:"dry_run" desc:"parse input data file, but don't post"`
 }
 

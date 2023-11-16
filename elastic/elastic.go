@@ -1,15 +1,19 @@
 // Package svc implements a service-layer between whomever wants to interact with Elastic
 // and an http client.
-package svc
+package elastic
 
 // Todo: re-name ??
 // Todo: wring hands over old yaml libs??
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
-	"ztbus"
 	"ztbus/entity"
+
+	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 const (
@@ -23,15 +27,10 @@ type Client interface {
 }
 
 // Logger specifies the logger.
-type Logger interface {
-	Info(ctx context.Context, msg string, kv ...any)
-	Error(ctx context.Context, msg string, err error, kv ...any)
-}
-
-type Repo interface {
-	CreateDoc(ctx context.Context, doc any) (err error)
-	AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error)
-}
+//type Logger interface {
+//Info(ctx context.Context, msg string, kv ...any)
+//Error(ctx context.Context, msg string, err error, kv ...any)
+//}
 
 // Config is configurables.
 type Config struct {
@@ -39,23 +38,23 @@ type Config struct {
 	DryRun bool   `json:"dry_run" desc:"stop short of external mutations"`
 }
 
-// Svc is the service layer.
-type Svc struct {
-	//Idx    string
-	//DryRun bool
-	//Client Client
-	Repo   Repo
-	Logger Logger
+// Elastic is the service layer.
+type Elastic struct {
+	Idx    string
+	DryRun bool
+	Client Client
+	//Logger Logger
 }
 
 // New creates a new Svc from Config
-func (cfg *Config) New(client Client, lgr Logger) *Svc {
+// func (cfg *Config) New(client Client, lgr Logger) *Svc {
+func (cfg *Config) New(client Client) *Elastic {
 
-	return &Svc{
-		//Idx:    cfg.Idx,
-		//DryRun: cfg.DryRun,
-		//Client: client,
-		Logger: lgr,
+	return &Elastic{
+		Idx:    cfg.Idx,
+		DryRun: cfg.DryRun,
+		Client: client,
+		//Logger: lgr,
 	}
 }
 
@@ -79,20 +78,21 @@ func (vals TsValues) String() string {
 }
 */
 
+/*
 // Todo: interesting that ztbus only shows here, split into more pkgs?? maybe repo for es generic
 func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error) {
 
-	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len)
+	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len, "index", svc.Idx)
 
-	//if svc.DryRun {
-	//svc.Logger.Info(ctx, "just kidding", "dry_run", svc.DryRun)
-	//return
-	//}
+	if svc.DryRun {
+		svc.Logger.Info(ctx, "just kidding", "dry_run", svc.DryRun)
+		return
+	}
 
 	start := time.Now()
 	for i := 0; i < 9; i++ {
 		//for i := 0; i < ztc.Len; i++ {
-		err = svc.Repo.CreateDoc(ctx, ztc.Row(i))
+		err = svc.CreateDoc(ctx, ztc.Row(i))
 		if err != nil {
 			return
 		}
@@ -101,14 +101,14 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 	svc.Logger.Info(ctx, "insertion finished", "elapsed", time.Since(start).Seconds())
 	return
 }
+*/
 
-/*
 // CreateDoc inserts a document.
-func (svc *Svc) CreateDoc(ctx context.Context, doc any) (err error) {
+func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 
 	result := esResult{}
 
-	err = svc.Client.SendObject(ctx, "POST", fmt.Sprintf(docPath, svc.Idx), doc, &result)
+	err = es.Client.SendObject(ctx, "POST", fmt.Sprintf(docPath, es.Idx), doc, &result)
 	if err != nil {
 		return
 	}
@@ -118,31 +118,12 @@ func (svc *Svc) CreateDoc(ctx context.Context, doc any) (err error) {
 	}
 	return
 }
-*/
 
 // Todo: dump query mode
 
 // AggAvg gets average over an interval.
-func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
+func (es *Elastic) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
 
-	datums := map[string]string{
-		"ts_field":   "ts",
-		"data_field": "vehicle_speed",
-		"interval":   "60m",
-		"bgn":        "2019-06-24T08:00:00Z",
-		"end":        "2019-06-24T17:59:59.999Z",
-	}
-
-	for key, val := range data {
-		datums[key] = val
-	}
-
-	//func (es *Elastic) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
-	vals, err = svc.Repo.AggAvg(ctx, datums)
-	return
-}
-
-/*
 	// form up a request and send it off
 
 	request, err := newAggRequest("agg-avg", "qry-rng", data)
@@ -151,20 +132,20 @@ func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity
 	}
 
 	response := map[string]json.RawMessage{}
-	err = svc.Client.SendObject(ctx, "GET", fmt.Sprintf(searchPath, svc.Idx), request, &response)
+	err = es.Client.SendObject(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), request, &response)
 	if err != nil {
 		return
 	}
 
 	// pick over response, strongly coupled to agg template!!
 
-	vals = []TsValue{}
+	vals = entity.TsValues{}
 	for _, bkt1 := range gjson.GetBytes(response["aggregations"], "outer.buckets").Array() {
 
 		nxTs := bkt1.Get("key").Int()
 		val := bkt1.Get("inner.value").Float()
 
-		vals = append(vals, TsValue{
+		vals = append(vals, entity.TsValue{
 			Ts:    time.UnixMilli(nxTs).UTC(),
 			Value: val,
 		})
@@ -216,7 +197,6 @@ func newAggRequest(aggName, qryName string, data map[string]string) (request agg
 
 	return
 }
-*/
 
 /*
 var aggg = `{
