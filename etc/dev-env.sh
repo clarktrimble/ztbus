@@ -9,5 +9,5 @@ export ZTB_CLIENT_BASEURI="https://localhost:9200"
 export ZTB_CLIENT_SKIPVERIFY="true"
 
 export ZTB_ELASTIC_IDX="ztbus001"
-export ZTB_ELASTIC_DRYRUN="true"
+export ZTB_SVC_DRYRUN="true"
 

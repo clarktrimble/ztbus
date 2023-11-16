@@ -11,11 +11,14 @@ import (
 	"github.com/clarktrimble/sabot"
 
 	"ztbus"
+	"ztbus/elastic"
 	"ztbus/svc"
 )
 
 // Todo: push logs to ES and show off??
 // Todo: update from branchy giant mod
+// Todo: maybe push user/pass into giant ? trunc into sabot for that matter ?
+// Todo: if redact is blank, say "unset"
 
 const (
 	cfgPrefix string = "ztb"
@@ -26,13 +29,14 @@ var (
 )
 
 type Config struct {
-	Version  string        `json:"version" ignored:"true"`
-	User     string        `json:"es_username" required:"true"`
-	Pass     launch.Redact `json:"es_password" required:"true"`
-	Client   *giant.Config `json:"http_client"`
-	Svc      *svc.Config   `json:"svc"`
-	Truncate int           `json:"truncate" desc:"truncate log fields beyond length"`
-	DataPath string        `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
+	Version  string          `json:"version" ignored:"true"`
+	User     string          `json:"es_username" required:"true"`
+	Pass     launch.Redact   `json:"es_password" required:"true"`
+	Client   *giant.Config   `json:"http_client"`
+	Elastic  *elastic.Config `json:"es"`
+	Svc      *svc.Config     `json:"svc"`
+	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
+	DataPath string          `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
 }
 
 func main() {
@@ -49,7 +53,8 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(cfg.User, string(cfg.Pass), lgr)
-	docSvc := cfg.Svc.New(client, lgr)
+	repo := cfg.Elastic.New(client)
+	docSvc := cfg.Svc.New(repo, lgr)
 
 	// parse csv and insert records
 
