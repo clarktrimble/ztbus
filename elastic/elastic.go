@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 	"ztbus/entity"
 
@@ -22,6 +24,7 @@ const (
 // Client specifies an http client.
 type Client interface {
 	SendObject(ctx context.Context, method, path string, snd, rcv any) (err error)
+	SendJson(ctx context.Context, method, path string, body io.Reader) (data []byte, err error)
 }
 
 // Config is configurables.
@@ -78,23 +81,19 @@ func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body
 }
 
 // AggAvg gets average over an interval.
-func (es *Elastic) AggAvg(ctx context.Context, data map[string]string, dr bool) (body string, vals entity.TsValues, err error) {
-	//func (es *Elastic) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
+func (es *Elastic) AggAvg(ctx context.Context, body string) (vals entity.TsValues, err error) {
 
 	// form up an agg request and send it off
 
-	request, err := newAggRequest("agg-avg", "qry-rng", data)
-	if err != nil {
-		return
-	}
-	body = request.String()
+	/*
+		request, err := newAggRequest("agg-avg", "qry-rng", data)
+		if err != nil {
+			return
+		}
+		body = request.String()
+	*/
 
-	if dr {
-		return
-	}
-
-	response := map[string]json.RawMessage{}
-	err = es.Client.SendObject(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), request, &response)
+	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), strings.NewReader(body))
 	if err != nil {
 		return
 	}
@@ -102,7 +101,7 @@ func (es *Elastic) AggAvg(ctx context.Context, data map[string]string, dr bool) 
 	// pick over response, strongly coupled to agg template!!
 
 	vals = entity.TsValues{}
-	for _, bkt1 := range gjson.GetBytes(response["aggregations"], "outer.buckets").Array() {
+	for _, bkt1 := range gjson.GetBytes(response, "aggregations.outer.buckets").Array() {
 
 		nxTs := bkt1.Get("key").Int()
 		val := bkt1.Get("inner.value").Float()

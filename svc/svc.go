@@ -20,7 +20,8 @@ type Logger interface {
 type Repo interface {
 	CreateDoc(ctx context.Context, doc any) (err error)
 	//AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error)
-	AggAvg(ctx context.Context, data map[string]string, dr bool) (body string, vals entity.TsValues, err error)
+	AggAvgBody(ctx context.Context, data map[string]string) (body string, err error)
+	AggAvg(ctx context.Context, body string) (vals entity.TsValues, err error)
 }
 
 // Config represents config options for Svc.
@@ -88,13 +89,28 @@ func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity
 
 	// Todo: the real prob here is that repo uses SendOjbects, fixxxx
 	//       yeah do not like body crammed into same method
+	//AggAvgBody(ctx context.Context, data map[string]string) (body string, err error)
 
-	var body string
-	body, vals, err = svc.Repo.AggAvg(ctx, datums, svc.DryRun)
+	request, err := svc.Repo.AggAvgBody(ctx, data)
 	if err != nil {
 		return
 	}
 
-	svc.Logger.Info(ctx, "agg avg", "body", body)
+	// Todo: fixup naming around agg dump pls
+
+	svc.Logger.Info(ctx, "agg avg", "body", request)
+	if svc.DryRun {
+		//Todo: loggggg
+		return
+	}
+
+	//var body string
+	//ody, vals, err = svc.Repo.AggAvg(ctx, datums, svc.DryRun)
+	vals, err = svc.Repo.AggAvg(ctx, request)
+	if err != nil {
+		return
+	}
+
+	//svc.Logger.Info(ctx, "agg avg", "body", body)
 	return
 }
