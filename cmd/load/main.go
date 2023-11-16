@@ -30,8 +30,6 @@ var (
 
 type Config struct {
 	Version  string          `json:"version" ignored:"true"`
-	User     string          `json:"es_username" required:"true"`
-	Pass     launch.Redact   `json:"es_password" required:"true"`
 	Client   *giant.Config   `json:"http_client"`
 	Elastic  *elastic.Config `json:"es"`
 	Svc      *svc.Config     `json:"svc"`
@@ -41,7 +39,7 @@ type Config struct {
 
 func main() {
 
-	// load config
+	// load config, setup logger
 
 	cfg := &Config{Version: version}
 	launch.Load(cfg, cfgPrefix)
@@ -52,7 +50,7 @@ func main() {
 
 	// setup service layer
 
-	client := cfg.Client.NewWithTrippers(cfg.User, string(cfg.Pass), lgr)
+	client := cfg.Client.NewWithTrippers(lgr)
 	repo := cfg.Elastic.New(client)
 	docSvc := cfg.Svc.New(repo, lgr)
 

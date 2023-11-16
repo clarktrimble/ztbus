@@ -3,6 +3,8 @@ github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5P
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=
 github.com/clarktrimble/giant v0.0.2-0.20231115215552-c38ab27b0b30 h1:vYsZ9WebNNW6p5cKVo5s1DBUNGj0gAH0SYzKpmjmaho=
 github.com/clarktrimble/giant v0.0.2-0.20231115215552-c38ab27b0b30/go.mod h1:yhZ+EtS0qaJ42hED7hTJNvxCXbO7uAn9TYnq59cwtG8=
+github.com/clarktrimble/giant v0.0.2-0.20231116194428-c49608283300 h1:QENo9FJGZchs/nJ0xihmzLnsu52l3pi34Chn7p2xW48=
+github.com/clarktrimble/giant v0.0.2-0.20231116194428-c49608283300/go.mod h1:yhZ+EtS0qaJ42hED7hTJNvxCXbO7uAn9TYnq59cwtG8=
 github.com/clarktrimble/hondo v0.0.2 h1:qkMa1ck0EJcQoNnUlnA7fKo3FcdM1VggWnaC2s/6YnA=
 github.com/clarktrimble/hondo v0.0.2/go.mod h1:wsp4GvBXObPbxX+kloKVPEu9rpxbSvkGhagSvUCX9Sk=
 github.com/clarktrimble/launch v0.0.1 h1:cJkyHRmb1Vu4KV3CDIMUUG3mZo0AQZuMtEKIOGZfxAU=

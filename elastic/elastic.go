@@ -2,19 +2,17 @@
 package elastic
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 	"ztbus/entity"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
-
-// Todo: dump query mode
 
 const (
 	docPath    = "/%s/_doc"
@@ -27,18 +25,18 @@ type Client interface {
 	SendJson(ctx context.Context, method, path string, body io.Reader) (data []byte, err error)
 }
 
-// Config is configurables.
+// Config represents config options for Elastic.
 type Config struct {
 	Idx string `json:"es_index" desc:"es index name" required:"true"`
 }
 
-// Elastic is the service layer.
+// Elastic is an ES json api client.
 type Elastic struct {
 	Idx    string
 	Client Client
 }
 
-// New creates a new Svc from Config
+// New creates a new Elastic from Config.
 func (cfg *Config) New(client Client) *Elastic {
 
 	return &Elastic{
@@ -63,37 +61,23 @@ func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 	return
 }
 
-// AggAvgBody provides a copy of the agg request body for sanity-checks, debug, etc.
-func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body string, err error) {
+// AggAvgBody generates the agg request body.
+func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error) {
 
-	request, err := newAggRequest("agg-avg", "qry-rng", data)
+	ar, err := newAggRequest("agg-avg", "qry-rng", data)
 	if err != nil {
 		return
 	}
 
-	//out, err := json.MarshalIndent(request, "", "  ")
-	//if err != nil {
-	//out = []byte(`{"error": "somehow failed to marshal agg request body"}`)
-	//}
-
-	body = request.String()
+	body, err = json.Marshal(ar)
+	err = errors.Wrapf(err, `{"error": "somehow failed to marshal agg request body"}`)
 	return
 }
 
 // AggAvg gets average over an interval.
-func (es *Elastic) AggAvg(ctx context.Context, body string) (vals entity.TsValues, err error) {
+func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsValues, err error) {
 
-	// form up an agg request and send it off
-
-	/*
-		request, err := newAggRequest("agg-avg", "qry-rng", data)
-		if err != nil {
-			return
-		}
-		body = request.String()
-	*/
-
-	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), strings.NewReader(body))
+	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), bytes.NewBuffer(body))
 	if err != nil {
 		return
 	}
@@ -125,16 +109,6 @@ type aggRequest struct {
 	Aggs  json.RawMessage `json:"aggs"`
 	Query json.RawMessage `json:"query"`
 	Size  int             `json:"size"`
-}
-
-func (ar aggRequest) String() string {
-
-	out, err := json.MarshalIndent(ar, "", "  ")
-	if err != nil {
-		return `{"error": "somehow failed to marshal agg request body"}`
-	}
-
-	return string(out)
 }
 
 func newAggRequest(aggName, qryName string, data map[string]string) (request aggRequest, err error) {

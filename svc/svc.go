@@ -19,9 +19,8 @@ type Logger interface {
 // Repo specifies the data store.
 type Repo interface {
 	CreateDoc(ctx context.Context, doc any) (err error)
-	//AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error)
-	AggAvgBody(ctx context.Context, data map[string]string) (body string, err error)
-	AggAvg(ctx context.Context, body string) (vals entity.TsValues, err error)
+	AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error)
+	AggAvg(ctx context.Context, body []byte) (vals entity.TsValues, err error)
 }
 
 // Config represents config options for Svc.
@@ -87,30 +86,18 @@ func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity
 		datums[key] = val
 	}
 
-	// Todo: the real prob here is that repo uses SendOjbects, fixxxx
-	//       yeah do not like body crammed into same method
-	//AggAvgBody(ctx context.Context, data map[string]string) (body string, err error)
-
-	request, err := svc.Repo.AggAvgBody(ctx, data)
+	agg, err := svc.Repo.AggAvgBody(ctx, data)
 	if err != nil {
 		return
 	}
 
-	// Todo: fixup naming around agg dump pls
+	svc.Logger.Info(ctx, "sending aggregation query to repo", "agg", string(agg))
 
-	svc.Logger.Info(ctx, "agg avg", "body", request)
 	if svc.DryRun {
-		//Todo: loggggg
+		svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
 		return
 	}
 
-	//var body string
-	//ody, vals, err = svc.Repo.AggAvg(ctx, datums, svc.DryRun)
-	vals, err = svc.Repo.AggAvg(ctx, request)
-	if err != nil {
-		return
-	}
-
-	//svc.Logger.Info(ctx, "agg avg", "body", body)
+	vals, err = svc.Repo.AggAvg(ctx, agg)
 	return
 }
