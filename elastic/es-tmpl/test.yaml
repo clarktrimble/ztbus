@@ -1,0 +1,16 @@
+
+---
+outer:
+  terms:
+    field: "bus_id.keyword"
+  aggs:
+    inner:
+      date_histogram:
+        field: "<< .ts_field >>"
+        fixed_interval: "<< .interval >>"
+        time_zone: "UTC"
+        min_doc_count: 1
+      aggs:
+        minner:
+          avg:
+            field: "<< .data_field >>"

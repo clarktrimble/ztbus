@@ -5,14 +5,14 @@ import (
 	"time"
 )
 
-type TsValue struct {
-	Ts    time.Time `json:"ts"`
-	Value float64   `json:"val"`
+type TsVal struct {
+	Ts  time.Time `json:"ts"`
+	Val float64   `json:"val"`
 }
 
-type TsValues []TsValue
+type TsVals []TsVal
 
-func (vals TsValues) String() string {
+func (vals TsVals) String() string {
 
 	out, err := json.MarshalIndent(vals, "", "  ")
 	if err != nil {
@@ -20,4 +20,11 @@ func (vals TsValues) String() string {
 	}
 
 	return string(out)
+}
+
+// Todo: use "Val" in naming
+
+type TermTsVals struct {
+	Term     string `json:"term"`
+	TsValues TsVals `json:"ts_vals"`
 }

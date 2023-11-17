@@ -18,7 +18,7 @@ type Logger interface {
 type Repo interface {
 	CreateDoc(ctx context.Context, doc any) (err error)
 	AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error)
-	AggAvg(ctx context.Context, body []byte) (vals entity.TsValues, err error)
+	AggAvg(ctx context.Context, body []byte) (vals entity.TsVals, err error)
 }
 
 // Config represents config options for Svc.
@@ -66,12 +66,13 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 }
 
 // AggAvg gets average over an interval.
-func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
+func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsVals, err error) {
 
 	// Todo: config datums, at least ntrvl, bgn, end
 
 	datums := map[string]string{
 		"ts_field":   "ts",
+		"term_field": "bus_id",
 		"data_field": "vehicle_speed",
 		"interval":   "60m",
 		"bgn":        "2022-09-21T08:00:00Z",

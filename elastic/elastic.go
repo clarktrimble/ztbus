@@ -65,6 +65,59 @@ func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 // AggAvgBody generates the agg request body.
 func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error) {
 
+	//ar, err := newAggRequest("agg-avg", "qry-rng", data)
+	ar, err := newAggRequest("test3", "qry-rng", data)
+	if err != nil {
+		return
+	}
+
+	body, err = json.Marshal(ar)
+	err = errors.Wrapf(err, `{"error": "somehow failed to marshal agg request body"}`)
+	return
+}
+
+// Todo: name AggIntervalTermFloat or TermTsVal, TsTermVal?
+func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsVals, err error) {
+
+	fmt.Printf(">>> body: \n%s\n\n", body)
+
+	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), bytes.NewBuffer(body))
+	if err != nil {
+		return
+	}
+
+	fmt.Printf(">>> response: \n%s\n\n", response)
+
+	// pick over response, strongly coupled to agg template!!
+
+	vals = entity.TsVals{}
+	//for _, bkt1 := range gjson.GetBytes(response, "aggregations.outer.buckets").Array() {
+	for _, bkt1 := range gjson.GetBytes(response, "aggregations.interval_agg.buckets").Array() {
+		for _, bkt2 := range bkt1.Get("term_agg.buckets").Array() {
+
+			ts := bkt1.Get("key").Int()
+			term := bkt2.Get("key").String()
+			value := bkt2.Get("float_agg.value").Float()
+			fmt.Printf(">>> %d %s %f\n", ts, term, value)
+
+			/*
+				nxTs := bkt1.Get("key").Int()
+				val := bkt1.Get("inner.value").Float()
+
+				vals = append(vals, entity.TsValue{
+					Ts:    time.UnixMilli(nxTs).UTC(),
+					Value: val,
+				})
+			*/
+		}
+	}
+
+	return
+}
+
+// AggAvgBody generates the agg request body.
+func (es *Elastic) AggAvgBodyOld(ctx context.Context, data map[string]string) (body []byte, err error) {
+
 	ar, err := newAggRequest("agg-avg", "qry-rng", data)
 	if err != nil {
 		return
@@ -76,24 +129,28 @@ func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body
 }
 
 // AggAvg gets average over an interval.
-func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsValues, err error) {
+func (es *Elastic) AggAvgOld(ctx context.Context, body []byte) (vals entity.TsVals, err error) {
+
+	fmt.Printf(">>> body: \n%s\n\n", body)
 
 	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), bytes.NewBuffer(body))
 	if err != nil {
 		return
 	}
 
+	fmt.Printf(">>> response: \n%s\n\n", response)
+
 	// pick over response, strongly coupled to agg template!!
 
-	vals = entity.TsValues{}
+	vals = entity.TsVals{}
 	for _, bkt1 := range gjson.GetBytes(response, "aggregations.outer.buckets").Array() {
 
 		nxTs := bkt1.Get("key").Int()
 		val := bkt1.Get("inner.value").Float()
 
-		vals = append(vals, entity.TsValue{
-			Ts:    time.UnixMilli(nxTs).UTC(),
-			Value: val,
+		vals = append(vals, entity.TsVal{
+			Ts:  time.UnixMilli(nxTs).UTC(),
+			Val: val,
 		})
 	}
 
