@@ -1,7 +1,5 @@
 // Package svc implements a service-layer between whomever wants to interact with repo and an http client.
-package svc
-
-// Todo: re-name ??
+package ztbsvc
 
 import (
 	"context"
@@ -51,14 +49,12 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len)
 
 	if svc.DryRun {
-		svc.Logger.Info(ctx, "just kidding", "dry_run", svc.DryRun)
+		svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
 		return
 	}
 
 	start := time.Now()
-	for i := 0; i < 9; i++ {
-		//for i := 0; i < ztc.Len; i++ {
-		// Todo: un gimp
+	for i := 0; i < ztc.Len; i++ {
 		err = svc.Repo.CreateDoc(ctx, ztc.Row(i))
 		if err != nil {
 			return
@@ -72,21 +68,21 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 // AggAvg gets average over an interval.
 func (svc *Svc) AggAvg(ctx context.Context, data map[string]string) (vals entity.TsValues, err error) {
 
-	// Todo: config datums ??
+	// Todo: config datums, at least ntrvl, bgn, end
 
 	datums := map[string]string{
 		"ts_field":   "ts",
 		"data_field": "vehicle_speed",
 		"interval":   "60m",
-		"bgn":        "2019-06-24T08:00:00Z",
-		"end":        "2019-06-24T17:59:59.999Z",
+		"bgn":        "2022-09-21T08:00:00Z",
+		"end":        "2022-09-21T16:59:59.999Z",
 	}
 
 	for key, val := range data {
 		datums[key] = val
 	}
 
-	agg, err := svc.Repo.AggAvgBody(ctx, data)
+	agg, err := svc.Repo.AggAvgBody(ctx, datums)
 	if err != nil {
 		return
 	}

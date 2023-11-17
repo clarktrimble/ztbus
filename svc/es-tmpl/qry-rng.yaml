@@ -1,7 +1,0 @@
----
-bool:
-  filter:
-    - range:
-        "<< .ts_field >>":
-          gte: "<< .bgn >>"
-          lte: "<< .end >>"

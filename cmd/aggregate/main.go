@@ -6,16 +6,13 @@ import (
 	"fmt"
 	"os"
 	"ztbus/elastic"
-	"ztbus/svc"
+	"ztbus/ztbsvc"
 
 	"github.com/clarktrimble/giant"
 	"github.com/clarktrimble/hondo"
 	"github.com/clarktrimble/launch"
 	"github.com/clarktrimble/sabot"
 )
-
-// Todo: push logs to ES and show off??
-// Todo: update from branchy giant mod
 
 const (
 	cfgPrefix string = "ztb"
@@ -28,8 +25,8 @@ var (
 type Config struct {
 	Version  string          `json:"version" ignored:"true"`
 	Client   *giant.Config   `json:"http_client"`
-	Svc      *svc.Config     `json:"svc"`
 	Elastic  *elastic.Config `json:"es"`
+	Svc      *ztbsvc.Config  `json:"ztb_svc"`
 	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
 }
 
@@ -48,12 +45,12 @@ func main() {
 
 	client := cfg.Client.NewWithTrippers(lgr)
 	repo := cfg.Elastic.New(client)
-	docSvc := cfg.Svc.New(repo, lgr)
+	ztbSvc := cfg.Svc.New(repo, lgr)
 
 	// run the agg, yay!
 
-	vals, err := docSvc.AggAvg(ctx, map[string]string{})
-	launch.Check(ctx, lgr, err) // Todo: demo error!
+	vals, err := ztbSvc.AggAvg(ctx, map[string]string{})
+	launch.Check(ctx, lgr, err)
 
 	fmt.Println(vals)
 }
