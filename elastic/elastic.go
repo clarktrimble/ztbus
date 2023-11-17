@@ -66,7 +66,7 @@ func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error) {
 
 	//ar, err := newAggRequest("agg-avg", "qry-rng", data)
-	ar, err := newAggRequest("test3", "qry-rng", data)
+	ar, err := newAggRequest("agg-term-dthist-avg", "qry-rng", data)
 	if err != nil {
 		return
 	}
