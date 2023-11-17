@@ -32,6 +32,7 @@ var _ = Describe("ZtBus", func() {
 		When("all is well", func() {
 			It("has the expected length", func() {
 				Expect(err).ToNot(HaveOccurred())
+				Expect(ztb.BusId).To(Equal("B183"))
 				Expect(ztb.Ts).To(HaveLen(56274))
 			})
 		})

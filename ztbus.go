@@ -6,13 +6,16 @@ import (
 	"io"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
 type ZtBus struct {
+	BusId          string    `json:"bus_id"`
 	Ts             time.Time `json:"ts"`
 	Power          float64   `json:"power"`
 	Altitude       float64   `json:"altitude"`
@@ -35,6 +38,7 @@ func (ztb *ZtBus) String() string {
 type ZtBusCols struct {
 	Len            int
 	ColIdx         map[string]int
+	BusId          string
 	Ts             []time.Time
 	Power          []float64
 	Altitude       []float64
@@ -49,6 +53,7 @@ func (ztb *ZtBusCols) Row(i int) *ZtBus {
 	// Todo: check len
 
 	return &ZtBus{
+		BusId:          ztb.BusId,
 		Ts:             ztb.Ts[i],
 		Power:          ztb.Power[i],
 		Altitude:       ztb.Altitude[i],
@@ -71,6 +76,12 @@ func (ztb *ZtBusCols) String() string {
 
 func New(fn string) (ztb *ZtBusCols, err error) {
 
+	// where fn is expected to look like "data/B183_2019-06-24_03-16-13_2019-06-24_18-54-06.csv"
+	ztb = &ZtBusCols{
+		BusId:  strings.Split(filepath.Base(fn), "_")[0],
+		ColIdx: map[string]int{},
+	}
+
 	file, err := os.Open(fn)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to open: %s", fn)
@@ -88,7 +99,6 @@ func New(fn string) (ztb *ZtBusCols, err error) {
 		return
 	}
 
-	ztb = &ZtBusCols{ColIdx: map[string]int{}}
 	for i, field := range record {
 		ztb.ColIdx[field] = i
 	}
