@@ -4,15 +4,13 @@ package elastic
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"time"
+	"io/fs"
 
 	"github.com/pkg/errors"
-	"github.com/tidwall/gjson"
 
-	"ztbus/entity"
+	"ztbus/template"
 )
 
 const (
@@ -33,17 +31,34 @@ type Config struct {
 
 // Elastic is an ES json api client.
 type Elastic struct {
-	Idx    string
 	Client Client
+	Idx    string
+	tmpl   *template.Template
 }
 
-// New creates a new Elastic from Config.
-func (cfg *Config) New(client Client) *Elastic {
+// New creates a new Elastic from Config, loaded query templates.
+func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 
-	return &Elastic{
-		Idx:    cfg.Idx,
-		Client: client,
+	tmpl := &template.Template{
+		//Path:   "es-tmpl",
+		Suffix: "yaml",
+		//Left:   "<<",
+		//Right:  ">>",
+		// Todo: need angle brackets here??
 	}
+
+	err = tmpl.Load(tmplFs)
+	if err != nil {
+		return
+	}
+
+	es = &Elastic{
+		Client: client,
+		Idx:    cfg.Idx,
+		tmpl:   tmpl,
+	}
+
+	return
 }
 
 // CreateDoc inserts a document.
@@ -62,41 +77,18 @@ func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 	return
 }
 
-// AggAvgBody generates the agg request body.
-func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error) {
+// Query renders a query.
+func (es *Elastic) Query(name string, data map[string]string) (query []byte, err error) {
 
-	ar, err := newAggRequest("agg-avg", "qry-rng", data)
-	if err != nil {
-		return
-	}
-
-	body, err = json.Marshal(ar)
-	err = errors.Wrapf(err, `{"error": "somehow failed to marshal agg request body"}`)
+	query, err = es.tmpl.RenderJson(name, data)
 	return
 }
 
-// AggAvg gets average over an interval.
-func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsValues, err error) {
+// Search sends a query to ES.
+func (es *Elastic) Search(ctx context.Context, query []byte) (result []byte, err error) {
 
-	response, err := es.Client.SendJson(ctx, "GET", fmt.Sprintf(searchPath, es.Idx), bytes.NewBuffer(body))
-	if err != nil {
-		return
-	}
-
-	// pick over response, strongly coupled to agg template!!
-
-	vals = entity.TsValues{}
-	for _, bkt1 := range gjson.GetBytes(response, "aggregations.outer.buckets").Array() {
-
-		nxTs := bkt1.Get("key").Int()
-		val := bkt1.Get("inner.value").Float()
-
-		vals = append(vals, entity.TsValue{
-			Ts:    time.UnixMilli(nxTs).UTC(),
-			Value: val,
-		})
-	}
-
+	path := fmt.Sprintf(searchPath, es.Idx)
+	result, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
 	return
 }
 
@@ -104,42 +96,4 @@ func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsValue
 
 type esResult struct {
 	Result string `json:"result"`
-}
-
-type aggRequest struct {
-	Aggs  json.RawMessage `json:"aggs"`
-	Query json.RawMessage `json:"query"`
-	Size  int             `json:"size"`
-}
-
-func newAggRequest(aggName, qryName string, data map[string]string) (request aggRequest, err error) {
-
-	// check that tmpls loaded via init w/o issue
-
-	if loadErr != nil {
-		err = loadErr
-		return
-	}
-
-	// render
-
-	agg, err := templates.RenderJson(aggName, data)
-	if err != nil {
-		return
-	}
-
-	qry, err := templates.RenderJson(qryName, data)
-	if err != nil {
-		return
-	}
-
-	// and assemble
-
-	request = aggRequest{
-		Aggs:  agg,
-		Query: qry,
-		Size:  0,
-	}
-
-	return
 }

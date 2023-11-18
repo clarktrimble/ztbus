@@ -71,6 +71,7 @@
 // Todo: if redact is blank, say "unset" in launch
 // Todo: config trunc in sabot
 // Todo: demo error! from launch
+// Pimp cfg dump/log
 
 ## working data
 

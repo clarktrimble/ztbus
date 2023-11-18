@@ -1,0 +1,25 @@
+
+---
+aggs:
+  outer:
+    date_histogram:
+      field: "ts"
+      fixed_interval: "{{ .interval }}"
+      time_zone: "UTC"
+      min_doc_count: 1
+    aggs:
+      middle:
+        terms:
+          field: "bus_id.keyword"
+        aggs:
+          inner:
+            avg:
+              field: "vehicle_speed"
+query:
+  bool:
+    filter:
+      - range:
+          "ts":
+            gte: "{{ .bgn }}"
+            lte: "{{ .end }}"
+size: 0

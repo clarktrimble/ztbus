@@ -46,7 +46,9 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(lgr)
-	repo := cfg.Elastic.New(client)
+	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
+	launch.Check(ctx, lgr, err)
+
 	ztbSvc := cfg.Svc.New(repo, lgr)
 
 	// parse csv and insert records

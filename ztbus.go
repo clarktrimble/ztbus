@@ -3,6 +3,7 @@ package ztbus
 import (
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -13,6 +14,24 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+type AvgSpeed struct {
+	Ts           time.Time `json:"ts"`
+	BusId        string    `json:"bus_id"`
+	VehicleSpeed float64   `json:"vehicle_speed"`
+}
+
+type AvgSpeeds []AvgSpeed
+
+func (avgs AvgSpeeds) String() string {
+
+	bldr := &strings.Builder{}
+	for _, avg := range avgs {
+		fmt.Fprintf(bldr, "%s\t%s\t%f\n", avg.Ts.Format(time.RFC3339), avg.BusId, avg.VehicleSpeed)
+	}
+
+	return bldr.String()
+}
 
 type ZtBus struct {
 	BusId          string    `json:"bus_id"`
