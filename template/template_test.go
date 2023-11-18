@@ -1,101 +1,103 @@
-package template
+package template_test
 
-// Todo: fix!!
-/*
-func TestTemplate_Load(t *testing.T) {
-	type fields struct {
-		Dir    string
-		Suffix string
-		Left   string
-		Right  string
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			"check that Load, um, loads",
-			fields{"../../container/nomad", "tmpl", "<%", "%>"},
-			false,
-		},
-		{
-			"check that Load relays error from below",
-			fields{"../../container/nomad", "brgl", "<%", "%>"},
-			true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpl := &Template{
-				Path:   tt.fields.Dir,
-				Suffix: tt.fields.Suffix,
-				Left:   tt.fields.Left,
-				Right:  tt.fields.Right,
-			}
-			err := tmpl.Load()
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Len(t, tmpl.tmpl.Templates(), 2)
-			}
-		})
-	}
+import (
+	"io/fs"
+	"os"
+	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	. "ztbus/template"
+)
+
+func TestTemplate(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Template Suite")
 }
 
-func TestTemplate_RenderString(t *testing.T) {
-	type fields struct {
-		Dir    string
-		Suffix string
-		Left   string
-		Right  string
-	}
-	type args struct {
-		name string
-		data interface{}
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			"check thqt RenderString renders a string",
-			fields{"../../container/nomad", "tmpl", "<%", "%>"},
-			args{"nomad-job-periodic.hcl", map[string]interface{}{
-				"kind":          "t1dedup",
-				"dc":            "sjc1",
-				"cronday":       "1",
-				"jobnameprefix": "t1",
-				"action":        "deduplicate",
-				"cronmin":       "15",
-			}},
-			`job "t1-deduplicate-sjc1"`,
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpl := &Template{
-				Path:   tt.fields.Dir,
-				Suffix: tt.fields.Suffix,
-				Left:   tt.fields.Left,
-				Right:  tt.fields.Right,
-			}
-			err := tmpl.Load()
-			assert.NoError(t, err)
+var _ = Describe("Template", func() {
+	var (
+		tmpl *Template
+		fs   fs.FS
+		err  error
+	)
 
-			got, err := tmpl.RenderString(tt.args.name, tt.args.data)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Contains(t, got, tt.want)
+	BeforeEach(func() {
+		tmpl = &Template{
+			Suffix: "yaml",
+			//Left:   "<<",
+			//Right:  ">>",
+			// Todo: need angle brackets here??
+		}
+		fs = os.DirFS("../test/templates")
+	})
+
+	Describe("loading templates from fs", func() {
+		JustBeforeEach(func() {
+			err = tmpl.Load(fs)
+		})
+
+		When("all is well", func() {
+			It("loads the expected number of templates", func() {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(tmpl.Tmpl.Templates()).To(HaveLen(1))
+			})
+		})
+	})
+
+	Describe("rendering a template", func() {
+		var (
+			name string
+			data map[string]string
+		)
+
+		BeforeEach(func() {
+			err = tmpl.Load(fs)
+			Expect(err).ToNot(HaveOccurred())
+
+			name = "avgspeed"
+			data = map[string]string{
+				"interval": "5m",
+				"bgn":      "2022-09-21T08:00:00Z",
+				"end":      "2022-09-21T16:59:59.999Z",
 			}
 		})
-	}
-}
-*/
+
+		Describe("to string", func() {
+			var (
+				out string
+			)
+
+			JustBeforeEach(func() {
+				out, err = tmpl.RenderString(name, data)
+			})
+
+			When("all is well", func() {
+				It("contains the expected substring", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(out).To(ContainSubstring(`    gte: "2022-09-21T08:00:00Z"`))
+				})
+			})
+		})
+
+		Describe("to json", func() {
+			var (
+				out []byte
+			)
+
+			JustBeforeEach(func() {
+				out, err = tmpl.RenderJson(name, data)
+			})
+
+			When("all is well", func() {
+				It("contains the expected substring", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(out).To(ContainSubstring(`"filter":[{"range":{"ts":{"gte":"2022-09-21T08:00:00Z"`))
+				})
+			})
+		})
+
+	})
+
+})

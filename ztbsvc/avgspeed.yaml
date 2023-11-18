@@ -4,7 +4,7 @@ aggs:
   outer:
     date_histogram:
       field: "ts"
-      fixed_interval: "<< .interval >>"
+      fixed_interval: "{{ .interval }}"
       time_zone: "UTC"
       min_doc_count: 1
     aggs:
@@ -20,6 +20,6 @@ query:
     filter:
       - range:
           "ts":
-            gte: "<< .bgn >>"
-            lte: "<< .end >>"
+            gte: "{{ .bgn }}"
+            lte: "{{ .end }}"
 size: 0

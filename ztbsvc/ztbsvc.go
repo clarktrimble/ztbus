@@ -12,7 +12,7 @@ import (
 	"ztbus"
 )
 
-//go:embed es-tmpl/*
+//go:embed *yaml
 var TmplFs embed.FS
 
 // Logger specifies the logger.

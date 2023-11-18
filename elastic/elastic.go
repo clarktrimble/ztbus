@@ -40,10 +40,10 @@ type Elastic struct {
 func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 
 	tmpl := &template.Template{
-		Path:   "es-tmpl",
+		//Path:   "es-tmpl",
 		Suffix: "yaml",
-		Left:   "<<",
-		Right:  ">>",
+		//Left:   "<<",
+		//Right:  ">>",
 		// Todo: need angle brackets here??
 	}
 
