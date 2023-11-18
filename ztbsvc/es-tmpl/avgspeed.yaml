@@ -1,25 +1,25 @@
 
 ---
 aggs:
-  interval_agg:
+  outer:
     date_histogram:
-      field: "<< .ts_field >>"
+      field: "ts"
       fixed_interval: "<< .interval >>"
       time_zone: "UTC"
       min_doc_count: 1
     aggs:
-      term_agg:
+      middle:
         terms:
-          field: "<< .term_field >>.keyword"
+          field: "bus_id.keyword"
         aggs:
-          float_agg:
+          inner:
             avg:
-              field: "<< .data_field >>"
+              field: "vehicle_speed"
 query:
   bool:
     filter:
       - range:
-          "<< .ts_field >>":
+          "ts":
             gte: "<< .bgn >>"
             lte: "<< .end >>"
 size: 0

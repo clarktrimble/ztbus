@@ -25,6 +25,6 @@ func (vals TsVals) String() string {
 // Todo: use "Val" in naming
 
 type TermTsVals struct {
-	Term     string `json:"term"`
-	TsValues TsVals `json:"ts_vals"`
+	Term   string `json:"term"`
+	TsVals TsVals `json:"ts_vals"`
 }

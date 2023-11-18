@@ -28,6 +28,9 @@ type Config struct {
 	Elastic  *elastic.Config `json:"es"`
 	Svc      *ztbsvc.Config  `json:"ztb_svc"`
 	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
+	Interval string          `json:"agg_interval" desc:"aggregation interval" default:"5m"`
+	Bgn      string          `json:"agg_start" desc:"aggregation start time" default:"2022-09-21T08:00:00Z"`
+	End      string          `json:"agg_end" desc:"aggregation end time" default:"2022-09-21T16:59:59.999Z"`
 }
 
 func main() {
@@ -44,13 +47,26 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(lgr)
-	repo := cfg.Elastic.New(client)
+	//repo := cfg.Elastic.New(client)
+	//func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
+	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
+	launch.Check(ctx, lgr, err)
+
 	ztbSvc := cfg.Svc.New(repo, lgr)
+	//ztbSvc, err := cfg.Svc.New(client, lgr)
 
 	// run the agg, yay!
 
-	vals, err := ztbSvc.AggAvg(ctx, map[string]string{})
+	avgs, err := ztbSvc.AvgSpeed(ctx, map[string]string{
+		"interval": cfg.Interval,
+		"bgn":      cfg.Bgn,
+		"end":      cfg.End,
+	})
 	launch.Check(ctx, lgr, err)
 
-	fmt.Println(vals)
+	//out, err := json.MarshalIndent(avgs, "", "  ")
+	//launch.Check(ctx, lgr, err)
+	//
+	fmt.Printf("%s\n", avgs)
+	//fmt.Println(avgs)
 }

@@ -7,12 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"time"
+	"io/fs"
 
 	"github.com/pkg/errors"
-	"github.com/tidwall/gjson"
 
-	"ztbus/entity"
+	"ztbus/template"
 )
 
 const (
@@ -35,16 +34,46 @@ type Config struct {
 type Elastic struct {
 	Idx    string
 	Client Client
+	tmpl   *template.Template
 }
 
 // New creates a new Elastic from Config.
-func (cfg *Config) New(client Client) *Elastic {
+func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 
-	return &Elastic{
+	tmpl := &template.Template{
+		Path:   "es-tmpl",
+		Suffix: "yaml",
+		Left:   "<<",
+		Right:  ">>",
+		// Todo: need angle brackets here??
+	}
+
+	err = tmpl.Load(tmplFs)
+	if err != nil {
+		return
+	}
+
+	es = &Elastic{
 		Idx:    cfg.Idx,
 		Client: client,
+		tmpl:   tmpl,
 	}
+
+	return
 }
+
+/*
+// func (cfg *Config) New(client Client, lgr Logger) (svc *Svc, err error) {
+func (es *Elastic) Load(tmplFs fs.FS) (err error) {
+
+	err = es.tmpl.Load(tmplFs)
+	if err != nil {
+		return
+	}
+
+	return
+}
+*/
 
 // CreateDoc inserts a document.
 func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
@@ -61,7 +90,25 @@ func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
 	}
 	return
 }
+func (es *Elastic) Query(name string, data map[string]string) (query []byte, err error) {
 
+	query, err = es.tmpl.RenderJson(name, data)
+	return
+}
+
+func (es *Elastic) Search(ctx context.Context, query []byte) (result []byte, err error) {
+
+	//if svc.DryRun {
+	//svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
+	//return
+	//}
+
+	path := fmt.Sprintf(searchPath, es.Idx)
+	result, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
+	return
+}
+
+/*
 // AggAvgBody generates the agg request body.
 func (es *Elastic) AggAvgBody(ctx context.Context, data map[string]string) (body []byte, err error) {
 
@@ -100,7 +147,6 @@ func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsVals,
 			value := bkt2.Get("float_agg.value").Float()
 			fmt.Printf(">>> %d %s %f\n", ts, term, value)
 
-			/*
 				nxTs := bkt1.Get("key").Int()
 				val := bkt1.Get("inner.value").Float()
 
@@ -108,7 +154,6 @@ func (es *Elastic) AggAvg(ctx context.Context, body []byte) (vals entity.TsVals,
 					Ts:    time.UnixMilli(nxTs).UTC(),
 					Value: val,
 				})
-			*/
 		}
 	}
 
@@ -156,6 +201,7 @@ func (es *Elastic) AggAvgOld(ctx context.Context, body []byte) (vals entity.TsVa
 
 	return
 }
+*/
 
 // unexported
 
