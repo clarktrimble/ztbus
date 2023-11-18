@@ -47,13 +47,10 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(lgr)
-	//repo := cfg.Elastic.New(client)
-	//func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
 	launch.Check(ctx, lgr, err)
 
 	ztbSvc := cfg.Svc.New(repo, lgr)
-	//ztbSvc, err := cfg.Svc.New(client, lgr)
 
 	// run the agg, yay!
 
@@ -64,9 +61,5 @@ func main() {
 	})
 	launch.Check(ctx, lgr, err)
 
-	//out, err := json.MarshalIndent(avgs, "", "  ")
-	//launch.Check(ctx, lgr, err)
-	//
 	fmt.Printf("%s\n", avgs)
-	//fmt.Println(avgs)
 }
