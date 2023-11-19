@@ -67,7 +67,6 @@
 ## Todo
 
 // Todo: push logs to ES and show off??
-// Todo: update from branchy giant mod
 // Todo: if redact is blank, say "unset" in launch
 // Todo: config trunc in sabot
 // Todo: demo error! from launch

@@ -3,7 +3,7 @@ module ztbus
 go 1.21.1
 
 require (
-	github.com/clarktrimble/giant v0.0.2-0.20231116194428-c49608283300
+	github.com/clarktrimble/giant v0.0.2
 	github.com/clarktrimble/hondo v0.0.2
 	github.com/clarktrimble/launch v0.0.1
 	github.com/clarktrimble/sabot v0.0.2
