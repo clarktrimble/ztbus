@@ -1,4 +1,5 @@
-// Package elastic chats with ES via it's json api.
+// Package elastic inserts documents and queries ES via it's json api.
+// Queries can be rendered from yaml templates.
 package elastic
 
 import (
@@ -36,15 +37,11 @@ type Elastic struct {
 	tmpl   *template.Template
 }
 
-// New creates a new Elastic from Config, loaded query templates.
+// New creates a new Elastic from Config, loading query templates.
 func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 
 	tmpl := &template.Template{
-		//Path:   "es-tmpl",
 		Suffix: "yaml",
-		//Left:   "<<",
-		//Right:  ">>",
-		// Todo: need angle brackets here??
 	}
 
 	err = tmpl.Load(tmplFs)
@@ -61,8 +58,8 @@ func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 	return
 }
 
-// CreateDoc inserts a document.
-func (es *Elastic) CreateDoc(ctx context.Context, doc any) (err error) {
+// Insert inserts a document.
+func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
 	result := esResult{}
 

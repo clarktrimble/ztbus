@@ -26,9 +26,6 @@ var _ = Describe("Template", func() {
 	BeforeEach(func() {
 		tmpl = &Template{
 			Suffix: "yaml",
-			//Left:   "<<",
-			//Right:  ">>",
-			// Todo: need angle brackets here??
 		}
 		fs = os.DirFS("../test/templates")
 	})
@@ -81,7 +78,7 @@ var _ = Describe("Template", func() {
 			})
 		})
 
-		Describe("to json", func() {
+		Describe("from yaml to json", func() {
 			var (
 				out []byte
 			)

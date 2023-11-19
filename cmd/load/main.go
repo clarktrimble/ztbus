@@ -12,7 +12,7 @@ import (
 
 	"ztbus"
 	"ztbus/elastic"
-	"ztbus/ztbsvc"
+	"ztbus/svc"
 )
 
 const (
@@ -27,7 +27,7 @@ type Config struct {
 	Version  string          `json:"version" ignored:"true"`
 	Client   *giant.Config   `json:"http_client"`
 	Elastic  *elastic.Config `json:"es"`
-	Svc      *ztbsvc.Config  `json:"ztb_svc"`
+	Svc      *svc.Config     `json:"ztb_svc"`
 	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
 	DataPath string          `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
 }
@@ -46,7 +46,7 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(lgr)
-	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
+	repo, err := cfg.Elastic.New(client, svc.TmplFs)
 	launch.Check(ctx, lgr, err)
 
 	ztbSvc := cfg.Svc.New(repo, lgr)

@@ -1,3 +1,5 @@
+// Package ztbus defines ZTBus related structs and handles the thankless
+// job of taking apart its csv files.
 package ztbus
 
 import (
@@ -15,14 +17,17 @@ import (
 	"github.com/pkg/errors"
 )
 
+// AvgSpeed represents a bus's speed at a particular time.
 type AvgSpeed struct {
 	Ts           time.Time `json:"ts"`
 	BusId        string    `json:"bus_id"`
 	VehicleSpeed float64   `json:"vehicle_speed"`
 }
 
+// AvgSpeeds is a multiplicity of them.
 type AvgSpeeds []AvgSpeed
 
+// String returns a tsv dump.
 func (avgs AvgSpeeds) String() string {
 
 	bldr := &strings.Builder{}
@@ -33,6 +38,7 @@ func (avgs AvgSpeeds) String() string {
 	return bldr.String()
 }
 
+// ZtBus represents a row from as taken from csv file.
 type ZtBus struct {
 	BusId          string    `json:"bus_id"`
 	Ts             time.Time `json:"ts"`
@@ -44,6 +50,7 @@ type ZtBus struct {
 	TractionForce  float64   `json:"traction_force"`
 }
 
+// String returns json.
 func (ztb *ZtBus) String() string {
 
 	out, err := json.Marshal(ztb)
@@ -54,6 +61,7 @@ func (ztb *ZtBus) String() string {
 	return string(out)
 }
 
+// ZtBusCols is a column-oriented view of ZTBus data.
 type ZtBusCols struct {
 	Len            int
 	ColIdx         map[string]int
@@ -67,6 +75,7 @@ type ZtBusCols struct {
 	TractionForce  []float64
 }
 
+// Row returns a ZtBus obj for a given row.
 func (ztb *ZtBusCols) Row(i int) *ZtBus {
 
 	// Todo: check len
@@ -83,6 +92,7 @@ func (ztb *ZtBusCols) Row(i int) *ZtBus {
 	}
 }
 
+// String returns json.
 func (ztb *ZtBusCols) String() string {
 
 	out, err := json.MarshalIndent(ztb, "", "  ")
@@ -93,6 +103,7 @@ func (ztb *ZtBusCols) String() string {
 	return string(out)
 }
 
+// New creates ZtBusCols given a csv filename.
 func New(fn string) (ztb *ZtBusCols, err error) {
 
 	// where fn is expected to look like "data/B183_2019-06-24_03-16-13_2019-06-24_18-54-06.csv"
@@ -134,14 +145,16 @@ func New(fn string) (ztb *ZtBusCols, err error) {
 			return
 		}
 
-		err = ztb.Append(record)
+		err = ztb.appendRecord(record)
 		if err != nil {
 			return
 		}
 	}
 }
 
-func (ztb *ZtBusCols) Append(record []string) (err error) {
+// unexported
+
+func (ztb *ZtBusCols) appendRecord(record []string) (err error) {
 
 	ts, err := time.Parse(time.RFC3339, record[ztb.ColIdx["time_iso"]])
 	if err != nil {

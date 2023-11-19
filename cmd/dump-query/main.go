@@ -14,7 +14,7 @@ import (
 	"github.com/clarktrimble/sabot"
 
 	"ztbus/elastic"
-	"ztbus/ztbsvc"
+	"ztbus/svc"
 )
 
 const (
@@ -72,7 +72,7 @@ func main() {
 	basicRt := basicrt.New(cfg.Client.User, string(cfg.Client.Pass))
 	client.Use(basicRt)
 
-	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
+	repo, err := cfg.Elastic.New(client, svc.TmplFs)
 	launch.Check(ctx, lgr, err)
 
 	// run the query, yay!

@@ -2,6 +2,8 @@ package ztbus_test
 
 import (
 	"testing"
+	"time"
+	"ztbus"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,6 +36,18 @@ var _ = Describe("ZtBus", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ztb.BusId).To(Equal("B183"))
 				Expect(ztb.Ts).To(HaveLen(56274))
+
+				then, _ := time.Parse(time.RFC3339, "2019-06-24T03:16:13Z")
+				Expect(ztb.Row(0)).To(Equal(&ztbus.ZtBus{
+					BusId:          "B183",
+					Ts:             then,
+					Power:          0,
+					Altitude:       0.8269722,
+					RouteName:      "-",
+					PassengerCount: 0,
+					VehicleSpeed:   0,
+					TractionForce:  0,
+				}))
 			})
 		})
 	})

@@ -1,6 +1,6 @@
-// Package ztbsvc provides a home for ZTBus agg templates and the means to decode thier results.
+// Package svc provides a home for ZTBus agg templates and the means to decode thier results.
 // And a means to inset records in to the repo.
-package ztbsvc
+package svc
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type Logger interface {
 
 // Repo specifies the data store.
 type Repo interface {
-	CreateDoc(ctx context.Context, doc any) (err error)
+	Insert(ctx context.Context, doc any) (err error)
 	Query(name string, data map[string]string) (query []byte, err error)
 	Search(ctx context.Context, query []byte) (result []byte, err error)
 }
@@ -99,7 +99,7 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 
 	start := time.Now()
 	for i := 0; i < ztc.Len; i++ {
-		err = svc.Repo.CreateDoc(ctx, ztc.Row(i))
+		err = svc.Repo.Insert(ctx, ztc.Row(i))
 		if err != nil {
 			return
 		}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"ztbus/elastic"
-	"ztbus/ztbsvc"
+	"ztbus/svc"
 
 	"github.com/clarktrimble/giant"
 	"github.com/clarktrimble/hondo"
@@ -26,7 +26,7 @@ type Config struct {
 	Version  string          `json:"version" ignored:"true"`
 	Client   *giant.Config   `json:"http_client"`
 	Elastic  *elastic.Config `json:"es"`
-	Svc      *ztbsvc.Config  `json:"ztb_svc"`
+	Svc      *svc.Config     `json:"ztb_svc"`
 	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
 	Interval string          `json:"agg_interval" desc:"aggregation interval" default:"5m"`
 	Bgn      string          `json:"agg_start" desc:"aggregation start time" default:"2022-09-21T08:00:00Z"`
@@ -47,7 +47,7 @@ func main() {
 	// setup service layer
 
 	client := cfg.Client.NewWithTrippers(lgr)
-	repo, err := cfg.Elastic.New(client, ztbsvc.TmplFs)
+	repo, err := cfg.Elastic.New(client, svc.TmplFs)
 	launch.Check(ctx, lgr, err)
 
 	ztbSvc := cfg.Svc.New(repo, lgr)
