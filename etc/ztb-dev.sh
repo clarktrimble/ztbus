@@ -2,7 +2,6 @@
 export ZTB_CLIENT_BASEURI="https://localhost:9200"
 export ZTB_CLIENT_SKIPVERIFY="true"
 export ZTB_CLIENT_USER="elastic"
-export ZTB_CLIENT_PASS="top*secret"
 
 export ZTB_ELASTIC_IDX="ztbus003"
 

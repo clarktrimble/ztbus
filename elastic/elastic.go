@@ -5,6 +5,7 @@ package elastic
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -63,13 +64,37 @@ func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
 	result := esResult{}
 
-	err = es.Client.SendObject(ctx, "POST", fmt.Sprintf(docPath, es.Idx), doc, &result)
+	path := fmt.Sprintf(docPath, es.Idx)
+	err = es.Client.SendObject(ctx, "POST", path, doc, &result)
 	if err != nil {
 		return
 	}
 
 	if result.Result != "created" {
-		err = errors.Errorf("unexpected result from es: %s", result.Result)
+		err = errors.Errorf("unexpected result from es: %#v", result.Result)
+	}
+	return
+}
+
+// InsertRaw inserts a raw json document.
+func (es *Elastic) InsertRaw(ctx context.Context, raw []byte) (err error) {
+
+	result := esResult{}
+
+	path := fmt.Sprintf(docPath, es.Idx)
+	response, err := es.Client.SendJson(ctx, "POST", path, bytes.NewBuffer(raw))
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(response, &result)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to unmarshal repsonse from es")
+		return
+	}
+
+	if result.Result != "created" {
+		err = errors.Errorf("unexpected result from es: %s", response)
 	}
 	return
 }
@@ -82,10 +107,10 @@ func (es *Elastic) Query(name string, data map[string]string) (query []byte, err
 }
 
 // Search sends a query to ES.
-func (es *Elastic) Search(ctx context.Context, query []byte) (result []byte, err error) {
+func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, err error) {
 
 	path := fmt.Sprintf(searchPath, es.Idx)
-	result, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
+	response, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
 	return
 }
 

@@ -71,6 +71,7 @@
 // Todo: config trunc in sabot
 // Todo: demo error! from launch
 // Pimp cfg dump/log
+// call attn to "keyword" in agg
 
 ## working data
 
