@@ -55,6 +55,10 @@ func (svc *Svc) AvgSpeed(ctx context.Context, data map[string]string) (avgs ztbu
 
 	name := "avgspeed"
 	query, err := svc.Repo.Query(name, data)
+	// Todo: linter missed missing error check here?
+	if err != nil {
+		return
+	}
 
 	svc.Logger.Info(ctx, "sending query", "query", string(query))
 	if svc.DryRun {
