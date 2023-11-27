@@ -25,10 +25,10 @@ var (
 
 type Config struct {
 	Version  string          `json:"version" ignored:"true"`
+	Logger   *sabot.Config   `json:"logger"`
 	Client   *giant.Config   `json:"http_client"`
 	Elastic  *elastic.Config `json:"es"`
 	Svc      *svc.Config     `json:"ztb_svc"`
-	Truncate int             `json:"truncate" desc:"truncate log fields beyond length"`
 	DataPath string          `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
 }
 
@@ -39,7 +39,7 @@ func main() {
 	cfg := &Config{Version: version}
 	launch.Load(cfg, cfgPrefix)
 
-	lgr := &sabot.Sabot{Writer: os.Stderr, MaxLen: cfg.Truncate}
+	lgr := cfg.Logger.New(os.Stderr)
 	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
 	lgr.Info(ctx, "starting up", "config", cfg)
 
