@@ -19,6 +19,7 @@ import (
 
 const (
 	cfgPrefix string = "ztb"
+	blerb     string = "'dump-query' renders an agg query from template, sends it to ES, and puts query and result to stdout"
 )
 
 var (
@@ -57,7 +58,7 @@ func main() {
 	// load config, setup logger
 
 	cfg := &Config{Version: version}
-	launch.Load(cfg, cfgPrefix)
+	launch.Load(cfg, cfgPrefix, blerb)
 
 	lgr := cfg.Logger.New(os.Stderr)
 	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))

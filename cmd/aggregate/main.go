@@ -5,17 +5,19 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"ztbus/elastic"
-	"ztbus/svc"
 
 	"github.com/clarktrimble/giant"
 	"github.com/clarktrimble/hondo"
 	"github.com/clarktrimble/launch"
 	"github.com/clarktrimble/sabot"
+
+	"ztbus/elastic"
+	"ztbus/svc"
 )
 
 const (
 	cfgPrefix string = "ztb"
+	blerb     string = "'aggregate' sends an agg query to ES and puts tsv results to stdout."
 )
 
 var (
@@ -38,7 +40,7 @@ func main() {
 	// load config, setup logger
 
 	cfg := &Config{Version: version}
-	launch.Load(cfg, cfgPrefix)
+	launch.Load(cfg, cfgPrefix, blerb)
 
 	lgr := cfg.Logger.New(os.Stderr)
 	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))

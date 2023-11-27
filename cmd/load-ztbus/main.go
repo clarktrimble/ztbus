@@ -17,6 +17,7 @@ import (
 
 const (
 	cfgPrefix string = "ztb"
+	blerb     string = "'load-ztbus' parses a given ztbus csv and inserts the records to ES"
 )
 
 var (
@@ -37,7 +38,7 @@ func main() {
 	// load config, setup logger
 
 	cfg := &Config{Version: version}
-	launch.Load(cfg, cfgPrefix)
+	launch.Load(cfg, cfgPrefix, blerb)
 
 	lgr := cfg.Logger.New(os.Stderr)
 	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))

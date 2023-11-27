@@ -17,6 +17,7 @@ import (
 
 const (
 	cfgPrefix string = "jles"
+	blerb     string = "'load-jsonl' scans a json lines file and inserts each into ES"
 )
 
 type Config struct {
@@ -29,7 +30,7 @@ func main() {
 	// load cfg and setup elastic
 
 	cfg := &Config{}
-	launch.Load(cfg, cfgPrefix)
+	launch.Load(cfg, cfgPrefix, blerb)
 
 	client := cfg.Client.New()
 
