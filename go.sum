@@ -7,8 +7,8 @@ github.com/clarktrimble/hondo v0.0.2 h1:qkMa1ck0EJcQoNnUlnA7fKo3FcdM1VggWnaC2s/6
 github.com/clarktrimble/hondo v0.0.2/go.mod h1:wsp4GvBXObPbxX+kloKVPEu9rpxbSvkGhagSvUCX9Sk=
 github.com/clarktrimble/launch v0.0.1 h1:cJkyHRmb1Vu4KV3CDIMUUG3mZo0AQZuMtEKIOGZfxAU=
 github.com/clarktrimble/launch v0.0.1/go.mod h1:8zwU/bHBzG+xATZCNrowcoyJ1fa51ptzgCR6cEq7Z+c=
-github.com/clarktrimble/sabot v0.0.2 h1:K/qiGdluAo6M4D3xjPeE3cFTQW6CmM3ditMNh+yqKFg=
-github.com/clarktrimble/sabot v0.0.2/go.mod h1:6t5oQESA01uNVkca/UGuMtHD4+u+Nf3VpmIrXiB+Asg=
+github.com/clarktrimble/sabot v0.0.3 h1:aHf3v+w7da0djA+6bkZzCxzITpzD2tt22D92hHeQTFk=
+github.com/clarktrimble/sabot v0.0.3/go.mod h1:6t5oQESA01uNVkca/UGuMtHD4+u+Nf3VpmIrXiB+Asg=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

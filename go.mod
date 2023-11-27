@@ -6,7 +6,7 @@ require (
 	github.com/clarktrimble/giant v0.0.2
 	github.com/clarktrimble/hondo v0.0.2
 	github.com/clarktrimble/launch v0.0.1
-	github.com/clarktrimble/sabot v0.0.2
+	github.com/clarktrimble/sabot v0.0.3
 	github.com/ghodss/yaml v1.0.0
 	github.com/onsi/ginkgo/v2 v2.13.1
 	github.com/onsi/gomega v1.29.0
