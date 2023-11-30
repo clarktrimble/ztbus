@@ -3,10 +3,14 @@
 package svc
 
 import (
+	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
+	"io"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 
 	"ztbus"
@@ -23,7 +27,7 @@ type Logger interface {
 
 // Repo specifies the data store.
 type Repo interface {
-	Insert(ctx context.Context, doc any) (err error)
+	BulkInsert(ctx context.Context, chunk int, rdr io.Reader) (count int, skip [][]byte, err error)
 	Query(name string, data map[string]string) (query []byte, err error)
 	Search(ctx context.Context, query []byte) (result []byte, err error)
 }
@@ -96,19 +100,37 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 
 	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len)
 
+	buf := &bytes.Buffer{}
+	newline := []byte("\n")
+	var data []byte
+
+	for i := 0; i < ztc.Len; i++ {
+		data, err = json.Marshal(ztc.Row(i))
+		if err != nil {
+			err = errors.Wrapf(err, "somehow failed to marshal row %d of ztbus cols", i)
+			return
+		}
+		buf.Write(data)
+		buf.Write(newline)
+	}
+
 	if svc.DryRun {
 		svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
+		// Todo: stdout
 		return
 	}
 
 	start := time.Now()
-	for i := 0; i < ztc.Len; i++ {
-		err = svc.Repo.Insert(ctx, ztc.Row(i))
-		if err != nil {
-			return
-		}
+	count, skip, err := svc.Repo.BulkInsert(ctx, 999, buf)
+	if err != nil {
+		return
 	}
-	svc.Logger.Info(ctx, "insertion finished", "elapsed", time.Since(start).Seconds())
+	if len(skip) != 0 {
+		//err = errors.Errorf("oops")
+		// Todo: nil err ??
+		svc.Logger.Error(ctx, "unexpectedly skipped", nil, "skip", skip)
+	}
 
+	svc.Logger.Info(ctx, "insertion finished", "count", count, "elapsed", time.Since(start).Seconds())
 	return
 }
