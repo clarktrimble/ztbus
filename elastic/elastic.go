@@ -2,6 +2,8 @@
 // Queries can be rendered from yaml templates.
 package elastic
 
+//go:generate moq -pkg mock -out mock/mock.go . Client
+
 import (
 	"bufio"
 	"bytes"
@@ -41,7 +43,7 @@ type Config struct {
 type Elastic struct {
 	Client Client
 	Idx    string
-	tmpl   *template.Template
+	tmpl   *template.Template // Todo: why private, cannot test??
 }
 
 // New creates a new Elastic from Config, loading query templates.
@@ -68,7 +70,7 @@ func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 // Insert inserts a document.
 func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
-	result := docResult{}
+	result := DocResult{}
 
 	path := fmt.Sprintf(docPath, es.Idx)
 	err = es.Client.SendObject(ctx, "POST", path, doc, &result)
@@ -149,98 +151,6 @@ func (es *Elastic) BulkInsert(ctx context.Context, chunk int, rdr io.Reader) (co
 	return
 }
 
-// Bulki iterates over a reader, adding ES bulk action lines before each valid line of json.
-type Bulki struct {
-	scn *bufio.Scanner
-	cnt int
-	chk int
-	buf *bytes.Buffer
-	skp [][]byte
-	err error
-}
-
-// NewBulki creates a new Bulki.
-func NewBulki(chunkSize int, rdr io.Reader) *Bulki {
-
-	var err error
-	if chunkSize < 1 {
-		err = errors.Errorf("chunk size must be positive, got: %d", chunkSize)
-	}
-
-	return &Bulki{
-		scn: bufio.NewScanner(rdr),
-		chk: chunkSize,
-		buf: &bytes.Buffer{},
-		err: err,
-	}
-}
-
-// Next reads the next chunk and adds action lines.
-func (blk *Bulki) Next() bool {
-
-	// flush output buffer and scan
-
-	fmt.Printf(">>> start next!\n")
-
-	blk.buf.Reset()
-	for blk.scn.Scan() {
-
-		// skip non-json
-
-		data := blk.scn.Bytes()
-		if !json.Valid(data) {
-			blk.skp = append(blk.skp, data)
-			continue
-		}
-
-		// buffer action and json for output
-
-		addLines(blk.buf, data) // Todo: reciever
-
-		// stop if we've handled a chunk
-
-		blk.cnt++
-		if blk.cnt%blk.chk == 0 {
-			break
-		}
-	}
-
-	// decide if there's more value, har
-
-	err := blk.scn.Err()
-	if err != nil {
-		blk.err = errors.Wrapf(err, "failed to scan reader")
-		return false
-	}
-
-	if blk.buf.Len() == 0 {
-		fmt.Printf(">>> return len zero!\n")
-		return false
-	}
-
-	return true
-}
-
-// Value returns the output buffer for read.
-func (blk *Bulki) Value() io.Reader {
-	return blk.buf
-}
-
-// Err returns any error encountered.
-func (blk *Bulki) Err() error {
-	return blk.err
-}
-
-// Count reports number of json lines handled.
-func (blk *Bulki) Count() int {
-	return blk.cnt
-}
-
-// Skipped reports any lines that have been skipped.
-func (blk *Bulki) Skipped() [][]byte {
-	return blk.skp
-}
-
 // Query renders a query.
 func (es *Elastic) Query(name string, data map[string]string) (query []byte, err error) {
 
@@ -258,7 +168,7 @@ func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, e
 
 // unexported
 
-type docResult struct {
+type DocResult struct {
 	Result string `json:"result"`
 }
 
@@ -285,12 +195,6 @@ type bulkResult struct {
 	} `json:"items"`
 }
 */
-
-var (
-	action  = []byte(`{"index":{}}`)
-	newline = []byte("\n")
-	fixed   = 2*len(newline) + len(action)
-)
 
 func addLines(buf *bytes.Buffer, data []byte) {
 

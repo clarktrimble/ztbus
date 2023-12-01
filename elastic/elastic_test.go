@@ -1,15 +1,18 @@
 package elastic_test
 
 import (
-	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"io/fs"
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	. "ztbus/elastic"
+	"ztbus/elastic/mock"
 )
 
 func TestElastic(t *testing.T) {
@@ -17,107 +20,95 @@ func TestElastic(t *testing.T) {
 	RunSpecs(t, "Elastic Suite")
 }
 
-var _ = Describe("Bulki", func() {
+var _ = Describe("Elastic", func() {
 	var (
-		chk int
-		//rdr *bytes.Buffer
-		bi *Bulki
+		cfg    *Config
+		client *mock.ClientMock
+		fs     fs.FS
+		es     *Elastic
+		err    error
+
+		ctx context.Context
 	)
 
-	Describe("creating a new Bulki iterator", func() {
+	BeforeEach(func() {
+		cfg = &Config{
+			Idx: "test-index",
+		}
+		client = &mock.ClientMock{
+			SendJsonFunc: func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+				panic("mock out the SendJson method")
+			},
+			SendObjectFunc: func(ctx context.Context, method string, path string, snd any, rcv any) error {
+				//panic("mock out the SendObject method")
+				fmt.Printf(">>> %s\n", method)
+				fmt.Printf(">>> %#v\n", rcv)
+				result := rcv.(*DocResult)
+				result.Result = "created"
+
+				return nil
+			},
+		}
+		fs = os.DirFS("../test/templates")
+
+		ctx = context.Background()
+	})
+
+	Describe("creating a new Elastic client", func() {
 		JustBeforeEach(func() {
-			bi = NewBulki(chk, nil)
+			es, err = cfg.New(client, fs)
 		})
 
 		When("all is well", func() {
-			BeforeEach(func() {
-				chk = 2
-			})
-
-			It("does not set error", func() {
-				Expect(bi.Err()).ToNot(HaveOccurred())
-			})
-		})
-
-		When("chunk size is invalid", func() {
-			BeforeEach(func() {
-				chk = 0
-			})
-
-			It("does not set error", func() {
-				Expect(bi.Err()).To(HaveOccurred())
+			It("does not error and populates", func() {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(es.Idx).To(Equal("test-index"))
+				Expect(es.Client).To(Equal(client))
 			})
 		})
 	})
 
-	Describe("getting a chunk from Bulki", func() {
+	Describe("creating a new Elastic client", func() {
 		var (
-			val io.Reader
+			data []byte
 		)
 
 		JustBeforeEach(func() {
-			next := bi.Next()
-			Expect(next).To(BeTrue())
-			val = bi.Value()
+			err = es.Insert(ctx, data)
 		})
 
 		When("all is well", func() {
 			BeforeEach(func() {
-				bi = NewBulki(2, bytes.NewBufferString(data))
+				es, err = cfg.New(client, fs)
+				Expect(err).ToNot(HaveOccurred())
+
+				data = []byte(`{"ima":"pc"}`) // Todo: move up
 			})
 
-			It("produces the first chunk", func() {
-				Expect(bi.Err()).ToNot(HaveOccurred())
-
-				buf := val.(*bytes.Buffer)
-				Expect(buf.String()).To(Equal("{\"index\":{}}\n{\"thing\":\"one\"}\n{\"index\":{}}\n{\"thing\":\"two\"}\n"))
-
-				Expect(bi.Count()).To(Equal(2))
-				Expect(bi.Skipped()).To(Equal([][]byte{[]byte("not the json")}))
-			})
-		})
-	})
-
-	Describe("getting last chunk from Bulki", func() {
-		var (
-			//previous io.Reader
-			val io.Reader
-		)
-
-		JustBeforeEach(func() {
-			// Todo: think about looking at all chunks
-			for bi.Next() {
-				//previous = val
-				val = bi.Value()
-				buf := val.(*bytes.Buffer)
-				fmt.Printf(">>> buf: %s\n", buf.String())
-			}
-		})
-
-		When("all is well", func() {
-			BeforeEach(func() {
-				bi = NewBulki(2, bytes.NewBufferString(data))
-			})
-
-			FIt("produces the last chunk", func() {
-				Expect(bi.Err()).ToNot(HaveOccurred())
-
-				fmt.Printf(">>> val: %#v\n", val)
-				//buf := previous.(*bytes.Buffer)
-				//fmt.Printf(">>> buf: %s\n", buf.String())
-				//buf := val.(*bytes.Buffer)
-				//Expect(buf.String()).To(Equal("{\"index\":{}}\n{\"thing\":\"one\"}\n{\"index\":{}}\n{\"thing\":\"two\"}\n"))
-
-				Expect(bi.Count()).To(Equal(3))
-				Expect(bi.Skipped()).To(Equal([][]byte{[]byte("not the json"), []byte("not the json too")}))
+			FIt("does not error and ...", func() {
+				Expect(err).ToNot(HaveOccurred())
+				//Expect(es.Idx).To(Equal("test-index"))
 			})
 		})
 	})
 
 })
 
-var data = `{"thing":"one"}
-not the json
-{"thing":"two"}
-not the json too
-{"thing":"three"}`
+// ClientMock is a mock implementation of elastic.Client.
+//
+//	func TestSomethingThatUsesClient(t *testing.T) {
+//
+//		// make and configure a mocked elastic.Client
+//		mockedClient := &ClientMock{
+//			SendJsonFunc: func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+//				panic("mock out the SendJson method")
+//			},
+//			SendObjectFunc: func(ctx context.Context, method string, path string, snd any, rcv any) error {
+//				panic("mock out the SendObject method")
+//			},
+//		}
+//
+//		// use mockedClient in code that requires elastic.Client
+//		// and then make assertions.
+//
+//	}
