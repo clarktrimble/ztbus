@@ -42,7 +42,7 @@ type Config struct {
 type Elastic struct {
 	Client Client
 	Idx    string
-	tmpl   *template.Template // Todo: why private, cannot test??
+	tmpl   *template.Template
 }
 
 // New creates a new Elastic from Config, loading query templates.
@@ -69,7 +69,7 @@ func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 // Insert inserts a document.
 func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
-	// Todo: doc would be more better as map[string]any yeah?? or too confining
+	// doc should marshal to json which is sensible to ES of course
 
 	result := DocResult{}
 
@@ -117,20 +117,17 @@ func (es *Elastic) Query(name string, data map[string]string) (query []byte, err
 // Search sends a query to ES.
 func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, err error) {
 
-	// Todo: could query be reader already from tmpl?
-
 	path := fmt.Sprintf(searchPath, es.Idx)
 	response, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
 	return
 }
 
-// unexported
-
 type DocResult struct {
 	Result string `json:"result"`
 }
 
-// Todo: pub for unit?
+// unexported
+
 type bulkResult struct {
 	Errors bool `json:"errors"`
 	// ignoring "items"

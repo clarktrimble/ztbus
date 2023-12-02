@@ -3,6 +3,7 @@ package elastic_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -19,8 +20,6 @@ func TestElastic(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Elastic Suite")
 }
-
-// Todo: unit err path
 
 var _ = Describe("Elastic", func() {
 	var (
@@ -57,111 +56,160 @@ var _ = Describe("Elastic", func() {
 		})
 	})
 
-	Describe("inserting a document object", func() {
-		var (
-			obj map[string]string
-		)
-
-		JustBeforeEach(func() {
-			err = es.Insert(ctx, obj)
+	Describe("working with ES", func() {
+		BeforeEach(func() {
+			es, err = cfg.New(client, fs)
+			Expect(err).ToNot(HaveOccurred())
 		})
 
-		When("all is well", func() {
-			BeforeEach(func() {
-				client = &mock.ClientMock{
-					SendObjectFunc: func(ctx context.Context, method string, path string, snd any, rcv any) error {
+		Describe("inserting a document object", func() {
+			var (
+				obj map[string]string
+			)
+
+			JustBeforeEach(func() {
+				err = es.Insert(ctx, obj)
+			})
+
+			When("all is well", func() {
+				BeforeEach(func() {
+					client.SendObjectFunc = func(ctx context.Context, method string, path string, snd any, rcv any) error {
 						result := rcv.(*DocResult)
 						result.Result = "created"
 						return nil
-					},
-				}
-				es, err = cfg.New(client, fs)
-				Expect(err).ToNot(HaveOccurred())
+					}
+					obj = map[string]string{"ima": "pc"}
+				})
 
-				obj = map[string]string{"ima": "pc"}
+				It("does not error and calls SendObject properly", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(client.SendObjectCalls()).To(HaveLen(1))
+
+					call := client.SendObjectCalls()[0]
+					Expect(call.Method).To(Equal("POST"))
+					Expect(call.Path).To(Equal("/test-index/_doc"))
+					Expect(call.Snd).To(Equal(obj))
+				})
 			})
 
-			It("does not error and calls SendObject properly", func() {
-				Expect(err).ToNot(HaveOccurred())
-				Expect(client.SendObjectCalls()).To(HaveLen(1))
+			When("ES reports non-create", func() {
+				BeforeEach(func() {
+					client.SendObjectFunc = func(ctx context.Context, method string, path string, snd any, rcv any) error {
+						result := rcv.(*DocResult)
+						result.Result = "bargle"
+						return nil
+					}
+				})
 
-				call := client.SendObjectCalls()[0]
-				Expect(call.Method).To(Equal("POST"))
-				Expect(call.Path).To(Equal("/test-index/_doc"))
-				Expect(call.Snd).To(Equal(obj))
+				It("returns an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(client.SendObjectCalls()).To(HaveLen(1))
+				})
+			})
+
+			When("client returns error", func() {
+				BeforeEach(func() {
+					client.SendObjectFunc = func(ctx context.Context, method string, path string, snd any, rcv any) error {
+						return fmt.Errorf("oops")
+					}
+				})
+
+				It("returns an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(client.SendObjectCalls()).To(HaveLen(1))
+				})
 			})
 		})
-	})
 
-	Describe("posting bulk data", func() {
-		var (
-			data *bytes.Buffer
-		)
+		Describe("posting bulk data", func() {
+			var (
+				data *bytes.Buffer
+			)
 
-		JustBeforeEach(func() {
-			err = es.PostBulk(ctx, data)
-		})
-
-		When("all is well", func() {
 			BeforeEach(func() {
-				client = &mock.ClientMock{
-					SendJsonFunc: func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
-						return []byte(`{"errors":false}`), nil
-					},
-				}
-				es, err = cfg.New(client, fs)
-				Expect(err).ToNot(HaveOccurred())
-
 				data = bytes.NewBufferString(`{"ima": "pc"}`)
 			})
 
-			It("does not error and calls SendJson properly", func() {
-				Expect(err).ToNot(HaveOccurred())
-				Expect(client.SendJsonCalls()).To(HaveLen(1))
+			JustBeforeEach(func() {
+				err = es.PostBulk(ctx, data)
+			})
 
-				call := client.SendJsonCalls()[0]
-				Expect(call.Method).To(Equal("POST"))
-				Expect(call.Path).To(Equal("/test-index/_bulk"))
-				Expect(call.Body.(*bytes.Buffer).String()).To(Equal("{\"ima\": \"pc\"}"))
+			When("all is well", func() {
+				BeforeEach(func() {
+					client.SendJsonFunc = func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+						return []byte(`{"errors":false}`), nil
+					}
+				})
+
+				It("does not error and calls SendJson properly", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(client.SendJsonCalls()).To(HaveLen(1))
+
+					call := client.SendJsonCalls()[0]
+					Expect(call.Method).To(Equal("POST"))
+					Expect(call.Path).To(Equal("/test-index/_bulk"))
+					Expect(call.Body.(*bytes.Buffer).String()).To(Equal("{\"ima\": \"pc\"}"))
+				})
+			})
+
+			When("es reports errors", func() {
+				BeforeEach(func() {
+					client.SendJsonFunc = func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+						return []byte(`{"errors":true}`), nil
+					}
+				})
+
+				It("returns an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(client.SendJsonCalls()).To(HaveLen(1))
+				})
+			})
+
+			When("client return error", func() {
+				BeforeEach(func() {
+					client.SendJsonFunc = func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+						return []byte(`{"errors":false}`), fmt.Errorf("oops")
+					}
+				})
+
+				It("returns an error", func() {
+					Expect(err).To(HaveOccurred())
+					Expect(client.SendJsonCalls()).To(HaveLen(1))
+				})
 			})
 		})
-	})
 
-	Describe("searching ES", func() {
-		var (
-			query    []byte
-			response []byte
-		)
+		Describe("searching", func() {
+			var (
+				query    []byte
+				response []byte
+			)
 
-		JustBeforeEach(func() {
-			response, err = es.Search(ctx, query)
-		})
+			JustBeforeEach(func() {
+				response, err = es.Search(ctx, query)
+			})
 
-		When("all is well", func() {
-			BeforeEach(func() {
-				client = &mock.ClientMock{
-					SendJsonFunc: func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
+			When("all is well", func() {
+				BeforeEach(func() {
+					client.SendJsonFunc = func(ctx context.Context, method string, path string, body io.Reader) ([]byte, error) {
 						return []byte(`{"number":42}`), nil
-					},
-				}
-				es, err = cfg.New(client, fs)
-				Expect(err).ToNot(HaveOccurred())
+					}
+					query = []byte(`{"ima": "pc"}`)
+				})
 
-				query = []byte(`{"ima": "pc"}`)
-			})
+				It("does not error and calls SendJson properly", func() {
+					Expect(err).ToNot(HaveOccurred())
+					Expect(client.SendJsonCalls()).To(HaveLen(1))
 
-			It("does not error and calls SendJson properly", func() {
-				Expect(err).ToNot(HaveOccurred())
-				Expect(client.SendJsonCalls()).To(HaveLen(1))
+					call := client.SendJsonCalls()[0]
+					Expect(call.Method).To(Equal("GET"))
+					Expect(call.Path).To(Equal("/test-index/_search"))
+					Expect(call.Body.(*bytes.Buffer).String()).To(Equal("{\"ima\": \"pc\"}"))
 
-				call := client.SendJsonCalls()[0]
-				Expect(call.Method).To(Equal("GET"))
-				Expect(call.Path).To(Equal("/test-index/_search"))
-				Expect(call.Body.(*bytes.Buffer).String()).To(Equal("{\"ima\": \"pc\"}"))
-
-				Expect(response).To(Equal([]byte(`{"number":42}`)))
+					Expect(response).To(Equal([]byte(`{"number":42}`)))
+				})
 			})
 		})
-	})
 
+	})
 })
