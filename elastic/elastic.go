@@ -5,7 +5,6 @@ package elastic
 //go:generate moq -pkg mock -out mock/mock.go . Client
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -70,6 +69,8 @@ func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 // Insert inserts a document.
 func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
+	// Todo: doc would be more better as map[string]any yeah?? or too confining
+
 	result := DocResult{}
 
 	path := fmt.Sprintf(docPath, es.Idx)
@@ -106,51 +107,6 @@ func (es *Elastic) PostBulk(ctx context.Context, data io.Reader) (err error) {
 	return
 }
 
-// BulkScan scans reader for json lines and bulk inserts them to ES.
-func (es *Elastic) BulkInsert(ctx context.Context, chunk int, rdr io.Reader) (count int, skip [][]byte, err error) {
-
-	// Todo: no room for spinner? no log instead
-	// Todo: config chunk w ES
-
-	buf := &bytes.Buffer{}
-	scanner := bufio.NewScanner(rdr)
-
-	for scanner.Scan() {
-
-		data := scanner.Bytes()
-		if !json.Valid(data) {
-			skip = append(skip, data)
-			continue
-		}
-
-		count++
-		addLines(buf, data)
-
-		if count%chunk == 0 {
-			err = es.PostBulk(ctx, buf)
-			if err != nil {
-				return
-			}
-
-			buf.Reset()
-		}
-	}
-	err = scanner.Err()
-	if err != nil {
-		err = errors.Wrapf(err, "failed to scan reader")
-		return
-	}
-
-	if buf.Len() != 0 {
-		err = es.PostBulk(ctx, buf)
-		if err != nil {
-			return
-		}
-	}
-
-	return
-}
-
 // Query renders a query.
 func (es *Elastic) Query(name string, data map[string]string) (query []byte, err error) {
 
@@ -160,6 +116,8 @@ func (es *Elastic) Query(name string, data map[string]string) (query []byte, err
 
 // Search sends a query to ES.
 func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, err error) {
+
+	// Todo: could query be reader already from tmpl?
 
 	path := fmt.Sprintf(searchPath, es.Idx)
 	response, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
@@ -172,6 +130,7 @@ type DocResult struct {
 	Result string `json:"result"`
 }
 
+// Todo: pub for unit?
 type bulkResult struct {
 	Errors bool `json:"errors"`
 	// ignoring "items"
@@ -195,12 +154,3 @@ type bulkResult struct {
 	} `json:"items"`
 }
 */
-
-func addLines(buf *bytes.Buffer, data []byte) {
-
-	buf.Grow(len(data) + fixed)
-	buf.Write(action)
-	buf.Write(newline)
-	buf.Write(data)
-	buf.Write(newline)
-}

@@ -10,6 +10,7 @@ import (
 	"github.com/clarktrimble/giant/basicrt"
 	"github.com/clarktrimble/giant/statusrt"
 	"github.com/clarktrimble/launch"
+	"github.com/clarktrimble/launch/spinner"
 
 	"ztbus/elastic"
 )
@@ -22,6 +23,7 @@ const (
 type Config struct {
 	Client  *giant.Config   `json:"http_client"`
 	Elastic *elastic.Config `json:"es"`
+	Chunk   int             `json:"chunk_size" desc:"number of records per chunk to insert" default:"999"`
 }
 
 func main() {
@@ -46,39 +48,21 @@ func main() {
 		Idx:    cfg.Elastic.Idx,
 	}
 
-	// Todo: config chunk size
-	count, skip, err := es.BulkInsert(ctx, 3, os.Stdin)
-	launch.Check(ctx, nil, err)
+	// chunk thru input and post
 
-	for _, line := range skip {
+	sp := spinner.New()
+	bi := elastic.NewBulki(cfg.Chunk, os.Stdin)
+
+	for bi.Next() {
+		err := es.PostBulk(ctx, bi.Value())
+		launch.Check(ctx, nil, err)
+		sp.Spin()
+	}
+	launch.Check(ctx, nil, bi.Err())
+
+	for _, line := range bi.Skipped() {
 		fmt.Printf(">>> skipped: %s\n", line)
 	}
 
-	fmt.Printf(">>> count: %d\n", count)
-
-	// scan stdin for json lines and send to ES
-
-	/*
-		sp := spinner.New()
-		scanner := bufio.NewScanner(os.Stdin)
-
-		for scanner.Scan() {
-
-			err := es.InsertRaw(ctx, scanner.Bytes())
-			if err != nil {
-				fmt.Fprintln(os.Stderr, "error inserting to es:", err)
-				os.Exit(1)
-			}
-
-			sp.Spin()
-		}
-
-		err := scanner.Err()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error reading standard input:", err)
-			os.Exit(1)
-		}
-
-		fmt.Printf("%d records inserted in %.2f seconds\n", sp.Count, sp.Elapsed())
-	*/
+	fmt.Printf("%d records inserted in %.2f seconds over %d chunks\n", bi.Count(), sp.Elapsed(), sp.Count)
 }

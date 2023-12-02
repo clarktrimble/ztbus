@@ -9,10 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Todo: think about generating id's from select doc fields for upsert
-//       perhaps via hash/fnv ? yeah and use create for error on dup?
-//       b-but what about replay for stragglers?
-
 var (
 	action  = []byte(`{"index":{}}`)
 	newline = []byte("\n")

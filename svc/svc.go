@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"io"
 	"time"
+	"ztbus/elastic"
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
@@ -27,13 +28,14 @@ type Logger interface {
 
 // Repo specifies the data store.
 type Repo interface {
-	BulkInsert(ctx context.Context, chunk int, rdr io.Reader) (count int, skip [][]byte, err error)
 	Query(name string, data map[string]string) (query []byte, err error)
 	Search(ctx context.Context, query []byte) (result []byte, err error)
+	PostBulk(ctx context.Context, data io.Reader) (err error)
 }
 
 // Config represents config options for Svc.
 type Config struct {
+	Chunk  int  `json:"chunk_size" desc:"number of records per chunk to insert" default:"999"`
 	DryRun bool `json:"dry_run" desc:"stop short of hitting repo"`
 }
 
@@ -41,6 +43,7 @@ type Config struct {
 type Svc struct {
 	Repo   Repo
 	Logger Logger
+	Chunk  int
 	DryRun bool
 }
 
@@ -50,6 +53,7 @@ func (cfg *Config) New(repo Repo, lgr Logger) *Svc {
 	return &Svc{
 		Repo:   repo,
 		Logger: lgr,
+		Chunk:  cfg.Chunk,
 		DryRun: cfg.DryRun,
 	}
 }
@@ -99,9 +103,11 @@ func (svc *Svc) AvgSpeed(ctx context.Context, data map[string]string) (avgs ztbu
 func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error) {
 
 	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len)
+	start := time.Now()
+
+	// serialize ztbus data to buffer
 
 	buf := &bytes.Buffer{}
-	newline := []byte("\n")
 	var data []byte
 
 	for i := 0; i < ztc.Len; i++ {
@@ -111,26 +117,33 @@ func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error
 			return
 		}
 		buf.Write(data)
-		buf.Write(newline)
+		buf.Write([]byte("\n"))
 	}
 
 	if svc.DryRun {
 		svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
-		// Todo: stdout
 		return
 	}
 
-	start := time.Now()
-	count, skip, err := svc.Repo.BulkInsert(ctx, 999, buf)
+	// chunk them in
+
+	bi := elastic.NewBulki(svc.Chunk, buf)
+	for bi.Next() {
+
+		err = svc.Repo.PostBulk(ctx, bi.Value())
+		if err != nil {
+			return
+		}
+	}
+	err = bi.Err()
 	if err != nil {
 		return
 	}
-	if len(skip) != 0 {
-		//err = errors.Errorf("oops")
-		// Todo: nil err ??
-		svc.Logger.Error(ctx, "unexpectedly skipped", nil, "skip", skip)
+
+	for _, line := range bi.Skipped() {
+		svc.Logger.Error(ctx, "unexpectedly skipped", nil, "line", string(line))
 	}
 
-	svc.Logger.Info(ctx, "insertion finished", "count", count, "elapsed", time.Since(start).Seconds())
+	svc.Logger.Info(ctx, "insertion finished", "count", bi.Count(), "elapsed", time.Since(start).Seconds())
 	return
 }
