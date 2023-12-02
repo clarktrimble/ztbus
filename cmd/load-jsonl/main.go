@@ -2,27 +2,28 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/clarktrimble/giant"
 	"github.com/clarktrimble/giant/basicrt"
+	"github.com/clarktrimble/giant/statusrt"
 	"github.com/clarktrimble/launch"
+	"github.com/clarktrimble/launch/spinner"
 
 	"ztbus/elastic"
 )
 
 const (
 	cfgPrefix string = "jles"
-	blerb     string = "'load-jsonl' scans a json lines file and inserts each into ES"
+	blerb     string = "'load-jsonl' scans json lines from stdin and inserts each into ES"
 )
 
 type Config struct {
 	Client  *giant.Config   `json:"http_client"`
 	Elastic *elastic.Config `json:"es"`
+	Chunk   int             `json:"chunk_size" desc:"number of records per chunk to insert" default:"999"`
 }
 
 func main() {
@@ -33,9 +34,13 @@ func main() {
 	launch.Load(cfg, cfgPrefix, blerb)
 
 	client := cfg.Client.New()
+	client.Use(&statusrt.StatusRt{})
 
 	basicRt := basicrt.New(cfg.Client.User, string(cfg.Client.Pass))
 	client.Use(basicRt)
+
+	// Todo: maybe do want loggingRt?
+	// Todo: document more curl against ES
 
 	ctx := context.Background()
 	es := &elastic.Elastic{
@@ -43,52 +48,21 @@ func main() {
 		Idx:    cfg.Elastic.Idx,
 	}
 
-	// scan stdin for json lines and send to ES
+	// chunk thru input and post
 
-	sp := &Spinner{Chars: []string{`-`, `\`, `|`, `/`}}
-	scanner := bufio.NewScanner(os.Stdin)
+	sp := spinner.New()
+	bi := elastic.NewBulki(cfg.Chunk, os.Stdin)
 
-	for scanner.Scan() {
-
-		err := es.InsertRaw(ctx, scanner.Bytes())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "error inserting to es:", err)
-			os.Exit(1)
-		}
-
+	for bi.Next() {
+		err := es.PostBulk(ctx, bi.Value())
+		launch.Check(ctx, nil, err)
 		sp.Spin()
 	}
+	launch.Check(ctx, nil, bi.Err())
 
-	err := scanner.Err()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error reading standard input:", err)
-		os.Exit(1)
+	for _, line := range bi.Skipped() {
+		fmt.Printf(">>> skipped: %s\n", line)
 	}
 
-	fmt.Printf("%d records inserted in %.2f seconds\n", sp.Count, sp.Elapsed())
-}
-
-// Spinner cycles chars on term to indicate activity.
-// Todo: truely minimally viable mod? or tuck into launch
-type Spinner struct {
-	Chars []string
-	Start time.Time
-	Count int
-}
-
-// Spin prints the next character.
-func (sp *Spinner) Spin() {
-
-	if sp.Start.IsZero() {
-		sp.Start = time.Now()
-	}
-
-	fmt.Printf(" %s \r", sp.Chars[sp.Count%len(sp.Chars)])
-	sp.Count++
-}
-
-// Elapsed reports seconds since the first Spin.
-func (sp *Spinner) Elapsed() (secs float64) {
-
-	return time.Since(sp.Start).Seconds()
+	fmt.Printf("%d records inserted in %.2f seconds over %d chunks\n", bi.Count(), sp.Elapsed(), sp.Count)
 }

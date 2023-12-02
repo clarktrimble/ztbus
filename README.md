@@ -14,7 +14,8 @@ I like templating queries and I'll have an eye on the `template` package for min
 
 To a lesser extent `elastic` could be a candidate as well if I found myself doing more with ES.
 
-`cmd/load-jsonl` loads json lines (aka ndjson) files into Elasticsearch which is especially nice for logs in the home laboratory.  Needs to be upgraded to at least the ES Bulk API though.
+`cmd/load-jsonl` loads json lines (aka ndjson) files into Elasticsearch which is especially nice for logs in the home laboratory.
+Now in bulk!
 
 `cmd/dump-query` is a good companion for query/results quackery!
 And could be adapted for other backends without much fuss.

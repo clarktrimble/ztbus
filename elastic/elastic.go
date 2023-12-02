@@ -2,6 +2,8 @@
 // Queries can be rendered from yaml templates.
 package elastic
 
+//go:generate moq -pkg mock -out mock/mock.go . Client
+
 import (
 	"bytes"
 	"context"
@@ -15,9 +17,14 @@ import (
 	"ztbus/template"
 )
 
+// Todo: think about generating id's from select doc fields for upsert
+//       perhaps via hash/fnv ? yeah and use create for error on dup?
+//       b-but what about replay for stragglers?
+
 const (
 	docPath    = "/%s/_doc"
 	searchPath = "/%s/_search"
+	bulkPath   = "/%s/_bulk"
 )
 
 // Client specifies an http client.
@@ -35,7 +42,7 @@ type Config struct {
 type Elastic struct {
 	Client Client
 	Idx    string
-	tmpl   *template.Template
+	tmpl   *template.Template // Todo: why private, cannot test??
 }
 
 // New creates a new Elastic from Config, loading query templates.
@@ -62,7 +69,9 @@ func (cfg *Config) New(client Client, tmplFs fs.FS) (es *Elastic, err error) {
 // Insert inserts a document.
 func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 
-	result := esResult{}
+	// Todo: doc would be more better as map[string]any yeah?? or too confining
+
+	result := DocResult{}
 
 	path := fmt.Sprintf(docPath, es.Idx)
 	err = es.Client.SendObject(ctx, "POST", path, doc, &result)
@@ -76,25 +85,24 @@ func (es *Elastic) Insert(ctx context.Context, doc any) (err error) {
 	return
 }
 
-// InsertRaw inserts a raw json document.
-func (es *Elastic) InsertRaw(ctx context.Context, raw []byte) (err error) {
+// PostBulk posts to the ES Bulk api.
+func (es *Elastic) PostBulk(ctx context.Context, data io.Reader) (err error) {
 
-	result := esResult{}
+	path := fmt.Sprintf(bulkPath, es.Idx)
 
-	path := fmt.Sprintf(docPath, es.Idx)
-	response, err := es.Client.SendJson(ctx, "POST", path, bytes.NewBuffer(raw))
+	response, err := es.Client.SendJson(ctx, "POST", path, data)
 	if err != nil {
 		return
 	}
 
+	result := bulkResult{}
 	err = json.Unmarshal(response, &result)
 	if err != nil {
 		err = errors.Wrapf(err, "failed to unmarshal repsonse from es")
 		return
 	}
-
-	if result.Result != "created" {
-		err = errors.Errorf("unexpected result from es: %s", response)
+	if result.Errors {
+		err = errors.Errorf("failed to post bulk to ES, got: %s", response)
 	}
 	return
 }
@@ -109,6 +117,8 @@ func (es *Elastic) Query(name string, data map[string]string) (query []byte, err
 // Search sends a query to ES.
 func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, err error) {
 
+	// Todo: could query be reader already from tmpl?
+
 	path := fmt.Sprintf(searchPath, es.Idx)
 	response, err = es.Client.SendJson(ctx, "GET", path, bytes.NewBuffer(query))
 	return
@@ -116,6 +126,31 @@ func (es *Elastic) Search(ctx context.Context, query []byte) (response []byte, e
 
 // unexported
 
-type esResult struct {
+type DocResult struct {
 	Result string `json:"result"`
 }
+
+// Todo: pub for unit?
+type bulkResult struct {
+	Errors bool `json:"errors"`
+	// ignoring "items"
+}
+
+/*
+	Items  []struct {
+		Index struct {
+			ID     string `json:"_id"`
+			Result string `json:"result"`
+			Status int    `json:"status"`
+			Error  struct {
+				Type   string `json:"type"`
+				Reason string `json:"reason"`
+				Cause  struct {
+					Type   string `json:"type"`
+					Reason string `json:"reason"`
+				} `json:"caused_by"`
+			} `json:"error"`
+		} `json:"index"`
+	} `json:"items"`
+}
+*/

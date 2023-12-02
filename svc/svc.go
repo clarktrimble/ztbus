@@ -3,10 +3,15 @@
 package svc
 
 import (
+	"bytes"
 	"context"
 	"embed"
+	"encoding/json"
+	"io"
 	"time"
+	"ztbus/elastic"
 
+	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 
 	"ztbus"
@@ -23,13 +28,14 @@ type Logger interface {
 
 // Repo specifies the data store.
 type Repo interface {
-	Insert(ctx context.Context, doc any) (err error)
 	Query(name string, data map[string]string) (query []byte, err error)
 	Search(ctx context.Context, query []byte) (result []byte, err error)
+	PostBulk(ctx context.Context, data io.Reader) (err error)
 }
 
 // Config represents config options for Svc.
 type Config struct {
+	Chunk  int  `json:"chunk_size" desc:"number of records per chunk to insert" default:"999"`
 	DryRun bool `json:"dry_run" desc:"stop short of hitting repo"`
 }
 
@@ -37,6 +43,7 @@ type Config struct {
 type Svc struct {
 	Repo   Repo
 	Logger Logger
+	Chunk  int
 	DryRun bool
 }
 
@@ -46,6 +53,7 @@ func (cfg *Config) New(repo Repo, lgr Logger) *Svc {
 	return &Svc{
 		Repo:   repo,
 		Logger: lgr,
+		Chunk:  cfg.Chunk,
 		DryRun: cfg.DryRun,
 	}
 }
@@ -95,20 +103,47 @@ func (svc *Svc) AvgSpeed(ctx context.Context, data map[string]string) (avgs ztbu
 func (svc *Svc) CreateDocs(ctx context.Context, ztc *ztbus.ZtBusCols) (err error) {
 
 	svc.Logger.Info(ctx, "inserting records", "count", ztc.Len)
+	start := time.Now()
+
+	// serialize ztbus data to buffer
+
+	buf := &bytes.Buffer{}
+	var data []byte
+
+	for i := 0; i < ztc.Len; i++ {
+		data, err = json.Marshal(ztc.Row(i))
+		if err != nil {
+			err = errors.Wrapf(err, "somehow failed to marshal row %d of ztbus cols", i)
+			return
+		}
+		buf.Write(data)
+		buf.Write([]byte("\n"))
+	}
 
 	if svc.DryRun {
 		svc.Logger.Info(ctx, "stopping short", "dry_run", svc.DryRun)
 		return
 	}
 
-	start := time.Now()
-	for i := 0; i < ztc.Len; i++ {
-		err = svc.Repo.Insert(ctx, ztc.Row(i))
+	// chunk them in
+
+	bi := elastic.NewBulki(svc.Chunk, buf)
+	for bi.Next() {
+
+		err = svc.Repo.PostBulk(ctx, bi.Value())
 		if err != nil {
 			return
 		}
 	}
-	svc.Logger.Info(ctx, "insertion finished", "elapsed", time.Since(start).Seconds())
+	err = bi.Err()
+	if err != nil {
+		return
+	}
 
+	for _, line := range bi.Skipped() {
+		svc.Logger.Error(ctx, "unexpectedly skipped", nil, "line", string(line))
+	}
+
+	svc.Logger.Info(ctx, "insertion finished", "count", bi.Count(), "elapsed", time.Since(start).Seconds())
 	return
 }

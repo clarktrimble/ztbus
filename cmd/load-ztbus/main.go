@@ -30,7 +30,7 @@ type Config struct {
 	Client   *giant.Config   `json:"http_client"`
 	Elastic  *elastic.Config `json:"es"`
 	Svc      *svc.Config     `json:"ztb_svc"`
-	DataPath string          `json:"data_path" desc:"path ztbus data file for input, skip agg if present"`
+	DataPath string          `json:"data_path" desc:"path of ztbus data file for input" required:"true"`
 }
 
 func main() {
