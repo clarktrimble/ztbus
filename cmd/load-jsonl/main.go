@@ -3,14 +3,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/clarktrimble/giant"
-	"github.com/clarktrimble/giant/basicrt"
-	"github.com/clarktrimble/giant/statusrt"
+	"github.com/clarktrimble/hondo"
 	"github.com/clarktrimble/launch"
 	"github.com/clarktrimble/launch/spinner"
+	"github.com/clarktrimble/sabot"
 
 	"ztbus/elastic"
 )
@@ -20,7 +19,13 @@ const (
 	blerb     string = "'load-jsonl' scans json lines from stdin and inserts each into ES"
 )
 
+var (
+	version string
+)
+
 type Config struct {
+	Version string          `json:"version" ignored:"true"`
+	Logger  *sabot.Config   `json:"logger"`
 	Client  *giant.Config   `json:"http_client"`
 	Elastic *elastic.Config `json:"es"`
 	Chunk   int             `json:"chunk_size" desc:"number of records per chunk to insert" default:"999"`
@@ -30,21 +35,15 @@ func main() {
 
 	// load cfg and setup elastic
 
-	cfg := &Config{}
+	cfg := &Config{Version: version}
 	launch.Load(cfg, cfgPrefix, blerb)
 
-	client := cfg.Client.New()
-	client.Use(&statusrt.StatusRt{})
+	lgr := cfg.Logger.New(os.Stderr)
+	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
+	lgr.Info(ctx, "starting up", "config", cfg)
 
-	basicRt := basicrt.New(cfg.Client.User, string(cfg.Client.Pass))
-	client.Use(basicRt)
-
-	// Todo: maybe do want loggingRt?
-	// Todo: document more curl against ES
-
-	ctx := context.Background()
 	es := &elastic.Elastic{
-		Client: client,
+		Client: cfg.Client.NewWithTrippers(lgr),
 		Idx:    cfg.Elastic.Idx,
 	}
 
@@ -55,14 +54,18 @@ func main() {
 
 	for bi.Next() {
 		err := es.PostBulk(ctx, bi.Value())
-		launch.Check(ctx, nil, err)
+		launch.Check(ctx, lgr, err)
 		sp.Spin()
 	}
-	launch.Check(ctx, nil, bi.Err())
+	launch.Check(ctx, lgr, bi.Err())
 
 	for _, line := range bi.Skipped() {
-		fmt.Printf(">>> skipped: %s\n", line)
+		lgr.Info(ctx, "skipped", "line", string(line))
 	}
 
-	fmt.Printf("%d records inserted in %.2f seconds over %d chunks\n", bi.Count(), sp.Elapsed(), sp.Count)
+	lgr.Info(ctx, "insertion finished",
+		"doc_count", bi.Count(),
+		"chunk_count", sp.Count,
+		"elapsed", sp.Elapsed(),
+	)
 }

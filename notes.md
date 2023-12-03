@@ -81,4 +81,11 @@ trimble@tartu:~/ztbus/compressed$ ls -l B*2022*09-21_*
 -rw-r--r-- 1 trimble trimble 9260703 Aug  9 11:07 B208_2022-09-21_04-05-16_2022-09-21_18-20-09.csv
 ```
 
+## curl v ES
 
+```
+ 4851  curl -k -u elastic:$ELASTIC_PASSWORD https://localhost:9200
+ 4886  curl -k -u elastic:$ELASTIC_PASSWORD https://localhost:9200/ztbus001/_search -H 'Content-Type: application/json' -XGET -d@aggg.json  | jq
+ 6890  curl -k -u elastic:$ELASTIC_PASSWORD https://localhost:9200/_cat/indices | grep log
+ 6897  curl -k -u elastic:$ELASTIC_PASSWORD https://localhost:9200/tstlog002/_search | jq
+```
