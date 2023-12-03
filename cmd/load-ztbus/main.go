@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	appId     string = "load-ztb"
 	cfgPrefix string = "ztb"
 	blerb     string = "'load-ztbus' parses a given ztbus csv and inserts the records to ES"
 )
@@ -41,7 +42,7 @@ func main() {
 	launch.Load(cfg, cfgPrefix, blerb)
 
 	lgr := cfg.Logger.New(os.Stderr)
-	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
+	ctx := lgr.WithFields(context.Background(), "app_id", appId, "run_id", hondo.Rand(7))
 	lgr.Info(ctx, "starting up", "config", cfg)
 
 	// setup service layer
@@ -59,4 +60,6 @@ func main() {
 
 	err = ztbSvc.CreateDocs(ctx, ztc)
 	launch.Check(ctx, lgr, err)
+
+	lgr.Info(ctx, "shutting down")
 }

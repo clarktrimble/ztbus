@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/clarktrimble/giant"
@@ -15,8 +16,9 @@ import (
 )
 
 const (
+	appId     string = "load-jsonl"
 	cfgPrefix string = "jles"
-	blerb     string = "'load-jsonl' scans json lines from stdin and inserts each into ES"
+	blerb     string = "'%s' scans json lines from stdin and inserts each into ES"
 )
 
 var (
@@ -36,10 +38,10 @@ func main() {
 	// load cfg and setup elastic
 
 	cfg := &Config{Version: version}
-	launch.Load(cfg, cfgPrefix, blerb)
+	launch.Load(cfg, cfgPrefix, fmt.Sprintf(blerb, appId))
 
 	lgr := cfg.Logger.New(os.Stderr)
-	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
+	ctx := lgr.WithFields(context.Background(), "app_id", appId, "run_id", hondo.Rand(7))
 	lgr.Info(ctx, "starting up", "config", cfg)
 
 	es := &elastic.Elastic{
@@ -68,4 +70,6 @@ func main() {
 		"chunk_count", sp.Count,
 		"elapsed", sp.Elapsed(),
 	)
+
+	lgr.Info(ctx, "shutting down")
 }

@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	appId     string = "agg-ztb"
 	cfgPrefix string = "ztb"
 	blerb     string = "'aggregate' sends an agg query to ES and puts tsv results to stdout."
 )
@@ -43,7 +44,7 @@ func main() {
 	launch.Load(cfg, cfgPrefix, blerb)
 
 	lgr := cfg.Logger.New(os.Stderr)
-	ctx := lgr.WithFields(context.Background(), "run_id", hondo.Rand(7))
+	ctx := lgr.WithFields(context.Background(), "app_id", appId, "run_id", hondo.Rand(7))
 	lgr.Info(ctx, "starting up", "config", cfg)
 
 	// setup service layer
@@ -64,4 +65,6 @@ func main() {
 	launch.Check(ctx, lgr, err)
 
 	fmt.Printf("%s\n", avgs)
+
+	lgr.Info(ctx, "shutting down")
 }
