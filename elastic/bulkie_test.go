@@ -36,8 +36,9 @@ var _ = Describe("Bulki", func() {
 				chk = 0
 			})
 
-			It("does not set error", func() {
+			It("sets error and does not iterate", func() {
 				Expect(bi.Err()).To(HaveOccurred())
+				Expect(bi.Next()).To(BeFalse())
 			})
 		})
 	})
@@ -90,7 +91,7 @@ var _ = Describe("Bulki", func() {
 				bi = NewBulki(2, bytes.NewBufferString(data))
 			})
 
-			It("produces the last chunk", func() {
+			It("produces the interlaced chunks", func() {
 				Expect(bi.Err()).ToNot(HaveOccurred())
 
 				Expect(out).To(HaveLen(2))

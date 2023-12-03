@@ -44,6 +44,10 @@ func NewBulki(chunkSize int, rdr io.Reader) *Bulki {
 // Next reads the next chunk and adds action lines.
 func (blk *Bulki) Next() bool {
 
+	if blk.err != nil {
+		return false
+	}
+
 	// reset output buffer and scan reader
 
 	blk.buf.Reset()
